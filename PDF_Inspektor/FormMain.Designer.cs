@@ -32,35 +32,40 @@ partial class FormMain
         Syncfusion.Windows.PdfViewer.PdfViewerPrinterSettings pdfViewerPrinterSettings1 = new Syncfusion.Windows.PdfViewer.PdfViewerPrinterSettings();
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMain));
         Syncfusion.Windows.Forms.PdfViewer.TextSearchSettings textSearchSettings1 = new Syncfusion.Windows.Forms.PdfViewer.TextSearchSettings();
-        tableLayoutPanel1 = new TableLayoutPanel();
+        tableLayoutPanel = new TableLayoutPanel();
         groupBoxFileList = new GroupBox();
+        listBoxFiles = new ListBox();
         groupBoxFileOperations = new GroupBox();
         groupBoxOptions = new GroupBox();
         groupBoxPDFViewer = new GroupBox();
         pdfViewerControl = new Syncfusion.Windows.Forms.PdfViewer.PdfViewerControl();
-        listBoxFiles = new ListBox();
-        tableLayoutPanel1.SuspendLayout();
+        statusStrip = new StatusStrip();
+        toolStripStatusLabel = new ToolStripStatusLabel();
+        tableLayoutPanel.SuspendLayout();
         groupBoxFileList.SuspendLayout();
         groupBoxPDFViewer.SuspendLayout();
+        statusStrip.SuspendLayout();
         SuspendLayout();
         // 
-        // tableLayoutPanel1
+        // tableLayoutPanel
         // 
-        tableLayoutPanel1.ColumnCount = 2;
-        tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400F));
-        tableLayoutPanel1.Controls.Add(groupBoxFileList, 1, 0);
-        tableLayoutPanel1.Controls.Add(groupBoxFileOperations, 0, 1);
-        tableLayoutPanel1.Controls.Add(groupBoxOptions, 1, 1);
-        tableLayoutPanel1.Controls.Add(groupBoxPDFViewer, 0, 0);
-        tableLayoutPanel1.Dock = DockStyle.Fill;
-        tableLayoutPanel1.Location = new Point(0, 0);
-        tableLayoutPanel1.Name = "tableLayoutPanel1";
-        tableLayoutPanel1.RowCount = 2;
-        tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
-        tableLayoutPanel1.Size = new Size(1184, 821);
-        tableLayoutPanel1.TabIndex = 0;
+        tableLayoutPanel.ColumnCount = 2;
+        tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400F));
+        tableLayoutPanel.Controls.Add(groupBoxFileList, 1, 0);
+        tableLayoutPanel.Controls.Add(groupBoxFileOperations, 0, 1);
+        tableLayoutPanel.Controls.Add(groupBoxOptions, 1, 1);
+        tableLayoutPanel.Controls.Add(groupBoxPDFViewer, 0, 0);
+        tableLayoutPanel.Controls.Add(statusStrip, 0, 2);
+        tableLayoutPanel.Dock = DockStyle.Fill;
+        tableLayoutPanel.Location = new Point(0, 0);
+        tableLayoutPanel.Name = "tableLayoutPanel";
+        tableLayoutPanel.RowCount = 3;
+        tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
+        tableLayoutPanel.RowStyles.Add(new RowStyle());
+        tableLayoutPanel.Size = new Size(1184, 821);
+        tableLayoutPanel.TabIndex = 0;
         // 
         // groupBoxFileList
         // 
@@ -68,15 +73,29 @@ partial class FormMain
         groupBoxFileList.Dock = DockStyle.Fill;
         groupBoxFileList.Location = new Point(787, 3);
         groupBoxFileList.Name = "groupBoxFileList";
-        groupBoxFileList.Size = new Size(394, 715);
+        groupBoxFileList.Size = new Size(394, 693);
         groupBoxFileList.TabIndex = 1;
         groupBoxFileList.TabStop = false;
         groupBoxFileList.Text = "Lista plików";
         // 
+        // listBoxFiles
+        // 
+        listBoxFiles.AllowDrop = true;
+        listBoxFiles.Dock = DockStyle.Fill;
+        listBoxFiles.FormattingEnabled = true;
+        listBoxFiles.ItemHeight = 15;
+        listBoxFiles.Location = new Point(3, 19);
+        listBoxFiles.Name = "listBoxFiles";
+        listBoxFiles.Size = new Size(388, 671);
+        listBoxFiles.TabIndex = 0;
+        listBoxFiles.SelectedIndexChanged += ListBoxFiles_SelectedIndexChanged;
+        listBoxFiles.DragDrop += ListBoxFiles_DragDrop;
+        listBoxFiles.DragEnter += ListBoxFiles_DragEnter;
+        // 
         // groupBoxFileOperations
         // 
         groupBoxFileOperations.Dock = DockStyle.Right;
-        groupBoxFileOperations.Location = new Point(210, 724);
+        groupBoxFileOperations.Location = new Point(210, 702);
         groupBoxFileOperations.Name = "groupBoxFileOperations";
         groupBoxFileOperations.Size = new Size(571, 94);
         groupBoxFileOperations.TabIndex = 2;
@@ -86,7 +105,7 @@ partial class FormMain
         // groupBoxOptions
         // 
         groupBoxOptions.Dock = DockStyle.Fill;
-        groupBoxOptions.Location = new Point(787, 724);
+        groupBoxOptions.Location = new Point(787, 702);
         groupBoxOptions.Name = "groupBoxOptions";
         groupBoxOptions.Size = new Size(394, 94);
         groupBoxOptions.TabIndex = 3;
@@ -99,7 +118,7 @@ partial class FormMain
         groupBoxPDFViewer.Dock = DockStyle.Fill;
         groupBoxPDFViewer.Location = new Point(3, 3);
         groupBoxPDFViewer.Name = "groupBoxPDFViewer";
-        groupBoxPDFViewer.Size = new Size(778, 715);
+        groupBoxPDFViewer.Size = new Size(778, 693);
         groupBoxPDFViewer.TabIndex = 0;
         groupBoxPDFViewer.TabStop = false;
         groupBoxPDFViewer.Text = "Podgląd pliku PDF";
@@ -131,7 +150,7 @@ partial class FormMain
         pdfViewerControl.ShowHorizontalScrollBar = true;
         pdfViewerControl.ShowToolBar = true;
         pdfViewerControl.ShowVerticalScrollBar = true;
-        pdfViewerControl.Size = new Size(772, 693);
+        pdfViewerControl.Size = new Size(772, 671);
         pdfViewerControl.SpaceBetweenPages = 5;
         pdfViewerControl.TabIndex = 0;
         pdfViewerControl.TabStop = false;
@@ -144,40 +163,53 @@ partial class FormMain
         pdfViewerControl.VerticalScrollOffset = 0;
         pdfViewerControl.VisualStyle = Syncfusion.Windows.Forms.PdfViewer.VisualStyle.Office2016Colorful;
         pdfViewerControl.ZoomMode = Syncfusion.Windows.Forms.PdfViewer.ZoomMode.FitPage;
+        pdfViewerControl.DocumentLoaded += PdfViewerControl_DocumentLoaded;
         // 
-        // listBoxFiles
+        // statusStrip
         // 
-        listBoxFiles.Dock = DockStyle.Fill;
-        listBoxFiles.FormattingEnabled = true;
-        listBoxFiles.ItemHeight = 15;
-        listBoxFiles.Location = new Point(3, 19);
-        listBoxFiles.Name = "listBoxFiles";
-        listBoxFiles.Size = new Size(388, 693);
-        listBoxFiles.TabIndex = 0;
+        tableLayoutPanel.SetColumnSpan(statusStrip, 2);
+        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel });
+        statusStrip.Location = new Point(0, 799);
+        statusStrip.Name = "statusStrip";
+        statusStrip.Size = new Size(1184, 22);
+        statusStrip.TabIndex = 4;
+        statusStrip.Text = "statusStrip";
+        // 
+        // toolStripStatusLabel
+        // 
+        toolStripStatusLabel.Name = "toolStripStatusLabel";
+        toolStripStatusLabel.Size = new Size(51, 17);
+        toolStripStatusLabel.Text = "Gotowy!";
         // 
         // FormMain
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(1184, 821);
-        Controls.Add(tableLayoutPanel1);
+        Controls.Add(tableLayoutPanel);
         MinimumSize = new Size(1000, 500);
         Name = "FormMain";
         Text = "GISNET PDF Inspektor";
+        FormClosed += FormMain_FormClosed;
         Load += FormMain_Load;
-        tableLayoutPanel1.ResumeLayout(false);
+        tableLayoutPanel.ResumeLayout(false);
+        tableLayoutPanel.PerformLayout();
         groupBoxFileList.ResumeLayout(false);
         groupBoxPDFViewer.ResumeLayout(false);
+        statusStrip.ResumeLayout(false);
+        statusStrip.PerformLayout();
         ResumeLayout(false);
     }
 
     #endregion
 
-    private TableLayoutPanel tableLayoutPanel1;
+    private TableLayoutPanel tableLayoutPanel;
     private GroupBox groupBoxFileList;
     private GroupBox groupBoxFileOperations;
     private GroupBox groupBoxOptions;
     private GroupBox groupBoxPDFViewer;
     private Syncfusion.Windows.Forms.PdfViewer.PdfViewerControl pdfViewerControl;
     private ListBox listBoxFiles;
+    private StatusStrip statusStrip;
+    private ToolStripStatusLabel toolStripStatusLabel;
 }
