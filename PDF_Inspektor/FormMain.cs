@@ -7,6 +7,7 @@
 
 namespace PDF_Inspektor;
 
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
 
