@@ -1,27 +1,58 @@
-﻿<Window x:Class="PDF_Inspektor_WPF.MainWindow"
+﻿<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:PDF_Inspektor_WPF"
+        xmlns:pdfViewer="clr-namespace:Syncfusion.Windows.PdfViewer;assembly=Syncfusion.PdfViewer.WPF" 
+        x:Class="PDF_Inspektor.MainWindow"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="600" Width="1200" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Closed="Window_Closed">
     <Grid>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="300*"/>
             <RowDefinition Height="100"/>
+            <RowDefinition Height="100"/>
             <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
 
+        <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300*"/>
             <ColumnDefinition Width="400"/>
-
         </Grid.ColumnDefinitions>
-        <TabPanel Grid.Row="2" Grid.ColumnSpan="2">
-            <StatusBar>
-                <StatusBarItem Content="StatusBarItem"/>
-            </StatusBar>
-        </TabPanel>
+
+        <GroupBox Header="Podgląd pliku" Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
+            <pdfViewer:PdfViewerControl x:Name="PdfViewer" DocumentLoaded="PdfViewer_DocumentLoaded" CursorMode="HandTool">
+                <pdfViewer:PdfViewerControl.Background>
+                    <ImageBrush ImageSource="/background.png"/>
+                </pdfViewer:PdfViewerControl.Background>
+            </pdfViewer:PdfViewerControl>
+        </GroupBox>
+
+        <GroupBox Grid.Row="0" Grid.Column="1" Header="Lista plików" >
+            <ListBox x:Name="ListBoxFiles" AllowDrop="True" DragOver="ListBoxFiles_DragOver" Drop="ListBoxFiles_Drop" SelectionChanged="ListBoxFiles_SelectionChanged"/>
+        </GroupBox>
+
+        <GroupBox Grid.Row="1" Grid.Column="1" Header="Opcje" />
+
+        <GroupBox Grid.Row="2" Grid.Column="1" Header="Operacje" >
+
+            <Button x:Name="ButtonRotate" 
+                    Content="Obrót" 
+                    HorizontalAlignment="Left" 
+                    VerticalAlignment="Top" 
+                    Width="100" 
+                    Height="20" 
+                    Margin="5,10,0,0" 
+                    Click="ButtonRotate_OnClick"
+                    MouseRightButtonDown="ButtonRotate_OnClick"/>
+
+        </GroupBox>
+
+        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" >
+            <StatusBarItem x:Name="StatusBarItemMain" Content="Gotowy!" />
+        </StatusBar>
+
+        
     </Grid>
 </Window>

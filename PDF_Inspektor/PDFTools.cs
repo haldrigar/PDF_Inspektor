@@ -11,8 +11,16 @@ using Syncfusion.Pdf;
 using Syncfusion.Pdf.Exporting;
 using Syncfusion.Pdf.Parsing;
 
+/// <summary>
+/// Klasa narzędziowa do obsługi plików PDF.
+/// </summary>
 internal static class PDFTools
 {
+    /// <summary>
+    /// Funkcja zwracająca rozdzielczość DPI pierwszego obrazu na pierwszej stronie dokumentu PDF.
+    /// </summary>
+    /// <param name="pdfLoadedDocument">Dokument PDF.</param>
+    /// <returns>Wartość DPI.</returns>
     public static string GetDPI(PdfLoadedDocument pdfLoadedDocument)
     {
         PdfLoadedPage page = (PdfLoadedPage)pdfLoadedDocument.Pages[0]; // Pobierz pierwszą stronę dokumentu

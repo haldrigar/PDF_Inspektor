@@ -1,4 +1,4 @@
-﻿namespace PDF_Inspektor;
+﻿namespace PDF_Inspektor_OLD;
 
 partial class FormMain
 {
@@ -13,9 +13,9 @@ partial class FormMain
     /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
     protected override void Dispose(bool disposing)
     {
-        if (disposing && (components != null))
+        if (disposing && (this.components != null))
         {
-            components.Dispose();
+            this.components.Dispose();
         }
         base.Dispose(disposing);
     }
@@ -32,173 +32,173 @@ partial class FormMain
         Syncfusion.Windows.PdfViewer.PdfViewerPrinterSettings pdfViewerPrinterSettings1 = new Syncfusion.Windows.PdfViewer.PdfViewerPrinterSettings();
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMain));
         Syncfusion.Windows.Forms.PdfViewer.TextSearchSettings textSearchSettings1 = new Syncfusion.Windows.Forms.PdfViewer.TextSearchSettings();
-        tableLayoutPanel = new TableLayoutPanel();
-        groupBoxFileList = new GroupBox();
-        listBoxFiles = new ListBox();
-        groupBoxFileOperations = new GroupBox();
-        groupBoxOptions = new GroupBox();
-        groupBoxPDFViewer = new GroupBox();
-        pdfViewerControl = new Syncfusion.Windows.Forms.PdfViewer.PdfViewerControl();
-        statusStrip = new StatusStrip();
-        toolStripStatusLabel = new ToolStripStatusLabel();
-        tableLayoutPanel.SuspendLayout();
-        groupBoxFileList.SuspendLayout();
-        groupBoxPDFViewer.SuspendLayout();
-        statusStrip.SuspendLayout();
-        SuspendLayout();
+        this.tableLayoutPanel = new TableLayoutPanel();
+        this.groupBoxFileList = new GroupBox();
+        this.listBoxFiles = new ListBox();
+        this.groupBoxFileOperations = new GroupBox();
+        this.groupBoxOptions = new GroupBox();
+        this.groupBoxPDFViewer = new GroupBox();
+        this.pdfViewerControl = new Syncfusion.Windows.Forms.PdfViewer.PdfViewerControl();
+        this.statusStrip = new StatusStrip();
+        this.toolStripStatusLabel = new ToolStripStatusLabel();
+        this.tableLayoutPanel.SuspendLayout();
+        this.groupBoxFileList.SuspendLayout();
+        this.groupBoxPDFViewer.SuspendLayout();
+        this.statusStrip.SuspendLayout();
+        this.SuspendLayout();
         // 
         // tableLayoutPanel
         // 
-        tableLayoutPanel.ColumnCount = 2;
-        tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400F));
-        tableLayoutPanel.Controls.Add(groupBoxFileList, 1, 0);
-        tableLayoutPanel.Controls.Add(groupBoxFileOperations, 0, 1);
-        tableLayoutPanel.Controls.Add(groupBoxOptions, 1, 1);
-        tableLayoutPanel.Controls.Add(groupBoxPDFViewer, 0, 0);
-        tableLayoutPanel.Controls.Add(statusStrip, 0, 2);
-        tableLayoutPanel.Dock = DockStyle.Fill;
-        tableLayoutPanel.Location = new Point(0, 0);
-        tableLayoutPanel.Name = "tableLayoutPanel";
-        tableLayoutPanel.RowCount = 3;
-        tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
-        tableLayoutPanel.RowStyles.Add(new RowStyle());
-        tableLayoutPanel.Size = new Size(1184, 821);
-        tableLayoutPanel.TabIndex = 0;
+        this.tableLayoutPanel.ColumnCount = 2;
+        this.tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        this.tableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400F));
+        this.tableLayoutPanel.Controls.Add(this.groupBoxFileList, 1, 0);
+        this.tableLayoutPanel.Controls.Add(this.groupBoxFileOperations, 0, 1);
+        this.tableLayoutPanel.Controls.Add(this.groupBoxOptions, 1, 1);
+        this.tableLayoutPanel.Controls.Add(this.groupBoxPDFViewer, 0, 0);
+        this.tableLayoutPanel.Controls.Add(this.statusStrip, 0, 2);
+        this.tableLayoutPanel.Dock = DockStyle.Fill;
+        this.tableLayoutPanel.Location = new Point(0, 0);
+        this.tableLayoutPanel.Name = "tableLayoutPanel";
+        this.tableLayoutPanel.RowCount = 3;
+        this.tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        this.tableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
+        this.tableLayoutPanel.RowStyles.Add(new RowStyle());
+        this.tableLayoutPanel.Size = new Size(1184, 821);
+        this.tableLayoutPanel.TabIndex = 0;
         // 
         // groupBoxFileList
         // 
-        groupBoxFileList.Controls.Add(listBoxFiles);
-        groupBoxFileList.Dock = DockStyle.Fill;
-        groupBoxFileList.Location = new Point(787, 3);
-        groupBoxFileList.Name = "groupBoxFileList";
-        groupBoxFileList.Size = new Size(394, 693);
-        groupBoxFileList.TabIndex = 1;
-        groupBoxFileList.TabStop = false;
-        groupBoxFileList.Text = "Lista plików";
+        this.groupBoxFileList.Controls.Add(this.listBoxFiles);
+        this.groupBoxFileList.Dock = DockStyle.Fill;
+        this.groupBoxFileList.Location = new Point(787, 3);
+        this.groupBoxFileList.Name = "groupBoxFileList";
+        this.groupBoxFileList.Size = new Size(394, 693);
+        this.groupBoxFileList.TabIndex = 1;
+        this.groupBoxFileList.TabStop = false;
+        this.groupBoxFileList.Text = "Lista plików";
         // 
         // listBoxFiles
         // 
-        listBoxFiles.AllowDrop = true;
-        listBoxFiles.Dock = DockStyle.Fill;
-        listBoxFiles.FormattingEnabled = true;
-        listBoxFiles.ItemHeight = 15;
-        listBoxFiles.Location = new Point(3, 19);
-        listBoxFiles.Name = "listBoxFiles";
-        listBoxFiles.Size = new Size(388, 671);
-        listBoxFiles.TabIndex = 0;
-        listBoxFiles.SelectedIndexChanged += ListBoxFiles_SelectedIndexChanged;
-        listBoxFiles.DragDrop += ListBoxFiles_DragDrop;
-        listBoxFiles.DragEnter += ListBoxFiles_DragEnter;
+        this.listBoxFiles.AllowDrop = true;
+        this.listBoxFiles.Dock = DockStyle.Fill;
+        this.listBoxFiles.FormattingEnabled = true;
+        this.listBoxFiles.ItemHeight = 15;
+        this.listBoxFiles.Location = new Point(3, 19);
+        this.listBoxFiles.Name = "listBoxFiles";
+        this.listBoxFiles.Size = new Size(388, 671);
+        this.listBoxFiles.TabIndex = 0;
+        this.listBoxFiles.SelectedIndexChanged += this.ListBoxFiles_SelectedIndexChanged;
+        this.listBoxFiles.DragDrop += this.ListBoxFiles_DragDrop;
+        this.listBoxFiles.DragEnter += this.ListBoxFiles_DragEnter;
         // 
         // groupBoxFileOperations
         // 
-        groupBoxFileOperations.Dock = DockStyle.Right;
-        groupBoxFileOperations.Location = new Point(210, 702);
-        groupBoxFileOperations.Name = "groupBoxFileOperations";
-        groupBoxFileOperations.Size = new Size(571, 94);
-        groupBoxFileOperations.TabIndex = 2;
-        groupBoxFileOperations.TabStop = false;
-        groupBoxFileOperations.Text = "Operacje na pliku";
+        this.groupBoxFileOperations.Dock = DockStyle.Right;
+        this.groupBoxFileOperations.Location = new Point(210, 702);
+        this.groupBoxFileOperations.Name = "groupBoxFileOperations";
+        this.groupBoxFileOperations.Size = new Size(571, 94);
+        this.groupBoxFileOperations.TabIndex = 2;
+        this.groupBoxFileOperations.TabStop = false;
+        this.groupBoxFileOperations.Text = "Operacje na pliku";
         // 
         // groupBoxOptions
         // 
-        groupBoxOptions.Dock = DockStyle.Fill;
-        groupBoxOptions.Location = new Point(787, 702);
-        groupBoxOptions.Name = "groupBoxOptions";
-        groupBoxOptions.Size = new Size(394, 94);
-        groupBoxOptions.TabIndex = 3;
-        groupBoxOptions.TabStop = false;
-        groupBoxOptions.Text = "Opcje";
+        this.groupBoxOptions.Dock = DockStyle.Fill;
+        this.groupBoxOptions.Location = new Point(787, 702);
+        this.groupBoxOptions.Name = "groupBoxOptions";
+        this.groupBoxOptions.Size = new Size(394, 94);
+        this.groupBoxOptions.TabIndex = 3;
+        this.groupBoxOptions.TabStop = false;
+        this.groupBoxOptions.Text = "Opcje";
         // 
         // groupBoxPDFViewer
         // 
-        groupBoxPDFViewer.Controls.Add(pdfViewerControl);
-        groupBoxPDFViewer.Dock = DockStyle.Fill;
-        groupBoxPDFViewer.Location = new Point(3, 3);
-        groupBoxPDFViewer.Name = "groupBoxPDFViewer";
-        groupBoxPDFViewer.Size = new Size(778, 693);
-        groupBoxPDFViewer.TabIndex = 0;
-        groupBoxPDFViewer.TabStop = false;
-        groupBoxPDFViewer.Text = "Podgląd pliku PDF";
+        this.groupBoxPDFViewer.Controls.Add(this.pdfViewerControl);
+        this.groupBoxPDFViewer.Dock = DockStyle.Fill;
+        this.groupBoxPDFViewer.Location = new Point(3, 3);
+        this.groupBoxPDFViewer.Name = "groupBoxPDFViewer";
+        this.groupBoxPDFViewer.Size = new Size(778, 693);
+        this.groupBoxPDFViewer.TabIndex = 0;
+        this.groupBoxPDFViewer.TabStop = false;
+        this.groupBoxPDFViewer.Text = "Podgląd pliku PDF";
         // 
         // pdfViewerControl
         // 
-        pdfViewerControl.CursorMode = Syncfusion.Windows.Forms.PdfViewer.PdfViewerCursorMode.HandTool;
-        pdfViewerControl.Dock = DockStyle.Fill;
-        pdfViewerControl.EnableContextMenu = false;
-        pdfViewerControl.EnableNotificationBar = false;
-        pdfViewerControl.HorizontalScrollOffset = 0;
-        pdfViewerControl.IsBookmarkEnabled = false;
-        pdfViewerControl.IsTextSearchEnabled = false;
-        pdfViewerControl.IsTextSelectionEnabled = false;
-        pdfViewerControl.Location = new Point(3, 19);
+        this.pdfViewerControl.CursorMode = Syncfusion.Windows.Forms.PdfViewer.PdfViewerCursorMode.HandTool;
+        this.pdfViewerControl.Dock = DockStyle.Fill;
+        this.pdfViewerControl.EnableContextMenu = false;
+        this.pdfViewerControl.EnableNotificationBar = false;
+        this.pdfViewerControl.HorizontalScrollOffset = 0;
+        this.pdfViewerControl.IsBookmarkEnabled = false;
+        this.pdfViewerControl.IsTextSearchEnabled = false;
+        this.pdfViewerControl.IsTextSelectionEnabled = false;
+        this.pdfViewerControl.Location = new Point(3, 19);
         messageBoxSettings1.EnableNotification = true;
-        pdfViewerControl.MessageBoxSettings = messageBoxSettings1;
-        pdfViewerControl.MinimumZoomPercentage = 50;
-        pdfViewerControl.Name = "pdfViewerControl";
-        pdfViewerControl.PageBorderThickness = 5;
+        this.pdfViewerControl.MessageBoxSettings = messageBoxSettings1;
+        this.pdfViewerControl.MinimumZoomPercentage = 50;
+        this.pdfViewerControl.Name = "pdfViewerControl";
+        this.pdfViewerControl.PageBorderThickness = 5;
         pdfViewerPrinterSettings1.Copies = 1;
         pdfViewerPrinterSettings1.PageOrientation = Syncfusion.Windows.PdfViewer.PdfViewerPrintOrientation.Auto;
         pdfViewerPrinterSettings1.PageSize = Syncfusion.Windows.PdfViewer.PdfViewerPrintSize.ActualSize;
         pdfViewerPrinterSettings1.PrintLocation = (PointF)resources.GetObject("pdfViewerPrinterSettings1.PrintLocation");
         pdfViewerPrinterSettings1.ShowPrintStatusDialog = true;
-        pdfViewerControl.PrinterSettings = pdfViewerPrinterSettings1;
-        pdfViewerControl.ReferencePath = null;
-        pdfViewerControl.ScrollDisplacementValue = 0;
-        pdfViewerControl.ShowHorizontalScrollBar = true;
-        pdfViewerControl.ShowToolBar = true;
-        pdfViewerControl.ShowVerticalScrollBar = true;
-        pdfViewerControl.Size = new Size(772, 671);
-        pdfViewerControl.SpaceBetweenPages = 5;
-        pdfViewerControl.TabIndex = 0;
-        pdfViewerControl.TabStop = false;
-        pdfViewerControl.Text = "pdfViewerControl";
+        this.pdfViewerControl.PrinterSettings = pdfViewerPrinterSettings1;
+        this.pdfViewerControl.ReferencePath = null;
+        this.pdfViewerControl.ScrollDisplacementValue = 0;
+        this.pdfViewerControl.ShowHorizontalScrollBar = true;
+        this.pdfViewerControl.ShowToolBar = true;
+        this.pdfViewerControl.ShowVerticalScrollBar = true;
+        this.pdfViewerControl.Size = new Size(772, 671);
+        this.pdfViewerControl.SpaceBetweenPages = 5;
+        this.pdfViewerControl.TabIndex = 0;
+        this.pdfViewerControl.TabStop = false;
+        this.pdfViewerControl.Text = "pdfViewerControl";
         textSearchSettings1.CurrentInstanceColor = Color.FromArgb(127, 255, 171, 64);
         textSearchSettings1.HighlightAllInstance = true;
         textSearchSettings1.OtherInstanceColor = Color.FromArgb(127, 254, 255, 0);
-        pdfViewerControl.TextSearchSettings = textSearchSettings1;
-        pdfViewerControl.ThemeName = "Office2016Colorful";
-        pdfViewerControl.VerticalScrollOffset = 0;
-        pdfViewerControl.VisualStyle = Syncfusion.Windows.Forms.PdfViewer.VisualStyle.Office2016Colorful;
-        pdfViewerControl.ZoomMode = Syncfusion.Windows.Forms.PdfViewer.ZoomMode.FitPage;
-        pdfViewerControl.DocumentLoaded += PdfViewerControl_DocumentLoaded;
+        this.pdfViewerControl.TextSearchSettings = textSearchSettings1;
+        this.pdfViewerControl.ThemeName = "Office2016Colorful";
+        this.pdfViewerControl.VerticalScrollOffset = 0;
+        this.pdfViewerControl.VisualStyle = Syncfusion.Windows.Forms.PdfViewer.VisualStyle.Office2016Colorful;
+        this.pdfViewerControl.ZoomMode = Syncfusion.Windows.Forms.PdfViewer.ZoomMode.FitPage;
+        this.pdfViewerControl.DocumentLoaded += this.PdfViewerControl_DocumentLoaded;
         // 
         // statusStrip
         // 
-        tableLayoutPanel.SetColumnSpan(statusStrip, 2);
-        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel });
-        statusStrip.Location = new Point(0, 799);
-        statusStrip.Name = "statusStrip";
-        statusStrip.Size = new Size(1184, 22);
-        statusStrip.TabIndex = 4;
-        statusStrip.Text = "statusStrip";
+        this.tableLayoutPanel.SetColumnSpan(this.statusStrip, 2);
+        this.statusStrip.Items.AddRange(new ToolStripItem[] { this.toolStripStatusLabel });
+        this.statusStrip.Location = new Point(0, 799);
+        this.statusStrip.Name = "statusStrip";
+        this.statusStrip.Size = new Size(1184, 22);
+        this.statusStrip.TabIndex = 4;
+        this.statusStrip.Text = "statusStrip";
         // 
         // toolStripStatusLabel
         // 
-        toolStripStatusLabel.Name = "toolStripStatusLabel";
-        toolStripStatusLabel.Size = new Size(51, 17);
-        toolStripStatusLabel.Text = "Gotowy!";
+        this.toolStripStatusLabel.Name = "toolStripStatusLabel";
+        this.toolStripStatusLabel.Size = new Size(51, 17);
+        this.toolStripStatusLabel.Text = "Gotowy!";
         // 
         // FormMain
         // 
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(1184, 821);
-        Controls.Add(tableLayoutPanel);
-        MinimumSize = new Size(1000, 500);
-        Name = "FormMain";
-        Text = "GISNET PDF Inspektor";
-        FormClosed += FormMain_FormClosed;
-        Load += FormMain_Load;
-        tableLayoutPanel.ResumeLayout(false);
-        tableLayoutPanel.PerformLayout();
-        groupBoxFileList.ResumeLayout(false);
-        groupBoxPDFViewer.ResumeLayout(false);
-        statusStrip.ResumeLayout(false);
-        statusStrip.PerformLayout();
-        ResumeLayout(false);
+        this.AutoScaleDimensions = new SizeF(7F, 15F);
+        this.AutoScaleMode = AutoScaleMode.Font;
+        this.ClientSize = new Size(1184, 821);
+        this.Controls.Add(this.tableLayoutPanel);
+        this.MinimumSize = new Size(1000, 500);
+        this.Name = "FormMain";
+        this.Text = "GISNET PDF Inspektor";
+        this.FormClosed += this.FormMain_FormClosed;
+        this.Load += this.FormMain_Load;
+        this.tableLayoutPanel.ResumeLayout(false);
+        this.tableLayoutPanel.PerformLayout();
+        this.groupBoxFileList.ResumeLayout(false);
+        this.groupBoxPDFViewer.ResumeLayout(false);
+        this.statusStrip.ResumeLayout(false);
+        this.statusStrip.PerformLayout();
+        this.ResumeLayout(false);
     }
 
     #endregion

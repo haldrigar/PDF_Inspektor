@@ -1,18 +1,19 @@
-﻿// <copyright file="App.xaml.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+﻿// ====================================================================================================
+// <copyright file="App.xaml.cs" company="Grzegorz Gogolewski">
+// Copyright (c) Grzegorz Gogolewski. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// ====================================================================================================
 
-using System.Windows;
-
-namespace PDF_Inspektor_WPF;
+namespace PDF_Inspektor;
 
 /// <summary>
 /// Interaction logic for App.xaml.
 /// </summary>
-public partial class App : Application
+public partial class App
 {
     /// <summary>
-    /// Konstruktor klasy App, w którym rejestrowana jest licencja Syncfusion.
+    /// Inicjalizuje nową instancję klasy <see cref="App"/> i rejestruje licencję Syncfusion.
     /// </summary>
     public App()
     {

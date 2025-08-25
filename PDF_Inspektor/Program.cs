@@ -5,6 +5,8 @@
 // </copyright>
 // ====================================================================================================
 
+using PDF_Inspektor_OLD;
+
 namespace PDF_Inspektor;
 
 /// <summary>

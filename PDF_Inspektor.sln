@@ -3,14 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36414.22
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF_Inspektor", "PDF_Inspektor\PDF_Inspektor.csproj", "{C9D3CDA7-7AEB-4644-9107-B25984742380}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF_Inspektor_OLD", "PDF_Inspektor\PDF_Inspektor_OLD.csproj", "{C9D3CDA7-7AEB-4644-9107-B25984742380}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		..\.editorconfig = ..\.editorconfig
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF Inspektor WPF", "PDF Inspektor WPF\PDF Inspektor WPF.csproj", "{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF_Inspektor", "PDF Inspektor WPF\PDF_Inspektor.csproj", "{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

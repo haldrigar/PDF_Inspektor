@@ -1,7 +1,6 @@
-﻿<Application x:Class="PDF_Inspektor_WPF.App"
+﻿<Application x:Class="PDF_Inspektor.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:PDF_Inspektor_WPF"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
          

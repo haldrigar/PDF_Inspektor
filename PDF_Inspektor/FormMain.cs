@@ -5,13 +5,13 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
-
-using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.Windows.Forms;
+
+using PDF_Inspektor;
 
 using Syncfusion.Windows.Forms.PdfViewer;
+
+namespace PDF_Inspektor_OLD;
 
 /// <summary>
 /// Klasa g³ówna formularza aplikacji.
