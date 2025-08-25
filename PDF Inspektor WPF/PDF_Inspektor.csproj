@@ -9,6 +9,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>gisnet.ico</ApplicationIcon>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,9 +5,9 @@
 // </copyright>
 // ====================================================================================================
 
-using System.IO;
-
 namespace PDF_Inspektor;
+
+using System.IO;
 
 /// <summary>
 /// KLasa reprezentująca plik PDF.

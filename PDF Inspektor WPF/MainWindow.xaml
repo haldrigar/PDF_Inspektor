@@ -6,7 +6,12 @@
         xmlns:pdfViewer="clr-namespace:Syncfusion.Windows.PdfViewer;assembly=Syncfusion.PdfViewer.WPF" 
         x:Class="PDF_Inspektor.MainWindow"
         mc:Ignorable="d"
-        Title="MainWindow" Height="600" Width="1200" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Closed="Window_Closed">
+
+        Title="GISNET PDF Inspektor" 
+        Height="600" 
+        Width="1200" 
+        Loaded="Window_Loaded" 
+        Closed="Window_Closed">
     <Grid>
 
         <Grid.RowDefinitions>
@@ -36,40 +41,67 @@
                                         ShowScrollbar="False" 
                                         ShowVerticalScrollBar="False" 
                                         IsManipulationEnabled="False"
-                                        ZoomMode="FitPage">
-                <pdfViewer:PdfViewerControl.Background>
-                    <ImageBrush ImageSource="/background.png"/>
-                </pdfViewer:PdfViewerControl.Background>
-
+                                        ZoomMode="FitPage" 
+                                        Background="White">
             </pdfViewer:PdfViewerControl>
 
         </GroupBox>
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Lista plików" >
-            <ListBox x:Name="ListBoxFiles" AllowDrop="True" DragOver="ListBoxFiles_DragOver" Drop="ListBoxFiles_Drop" SelectionChanged="ListBoxFiles_SelectionChanged"/>
+            <ListBox x:Name="ListBoxFiles" 
+                     AllowDrop="True" 
+                     DragOver="ListBoxFiles_DragOver" 
+                     Drop="ListBoxFiles_Drop" 
+                     SelectionChanged="ListBoxFiles_SelectionChanged" KeyDown="ListBoxFiles_KeyDown"/>
         </GroupBox>
 
         <GroupBox Grid.Row="1" Grid.Column="1" Header="Opcje" />
 
         <GroupBox Grid.Row="2" Grid.Column="1" Header="Operacje" >
 
-            <Button x:Name="ButtonRotate" 
-                    Content="Obrót" 
-                    HorizontalAlignment="Left" 
-                    VerticalAlignment="Top" 
-                    Width="100" 
-                    Height="20" 
-                    Margin="5,10,0,0" 
-                    ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
-                    Click="ButtonRotate_OnClick"
-                    MouseRightButtonDown="ButtonRotate_OnClick"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="ButtonRotate" 
+                        Content="Obrót" 
+                        Width="100" 
+                        Height="25" 
+                        Grid.Column="0"
+                        ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
+                        Click="ButtonRotate_OnClick"
+                        MouseRightButtonDown="ButtonRotate_OnClick" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"/>
+                
+                <Button x:Name="ButtonEdit" 
+                        Content="Edycja" 
+                        Width="100"
+                        Height="25"
+                        Grid.Column="1" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center" 
+                        Click="ButtonEdit_Click"/>
+
+            </Grid>
+
+
+
 
         </GroupBox>
 
-        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" >
-            <StatusBarItem x:Name="StatusBarItemMain" Content="Gotowy!" />
+
+        <StatusBar Grid.Row="3" 
+                   Grid.Column="0" 
+                   Grid.ColumnSpan="2" >
+
+            <StatusBarItem x:Name="StatusBarItemMain" 
+                           Content="Gotowy!" />
+
         </StatusBar>
 
-        
+
     </Grid>
 </Window>

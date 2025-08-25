@@ -11,6 +11,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 using Syncfusion.Pdf;
@@ -63,6 +64,8 @@ public partial class MainWindow
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        this.Top = this.appSettings.WindowTop; // Ustaw pozycję okna na górze
+        this.Left = this.appSettings.WindowLeft; // Ustaw pozycję okna z lewej strony
     }
 
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
@@ -104,6 +107,10 @@ public partial class MainWindow
 
     private void Window_Closed(object sender, EventArgs e)
     {
+        // Zapisz ustawienia aplikacji przy zamykaniu okna
+        this.appSettings.WindowTop = this.Top;
+        this.appSettings.WindowLeft = this.Left;
+
         this.SaveConfig();
     }
 
@@ -150,9 +157,11 @@ public partial class MainWindow
 
         foreach (string item in itemsToSort)
         {
-            this.ListBoxFiles.Items.Add(item);
+            PdfFile pdfFile = new PdfFile(this.ListBoxFiles.Items.Count - 1, item); // Utwórz obiekt PdfFile
 
-            this.pdfFiles.Add(new PdfFile(this.ListBoxFiles.Items.Count - 1, item));
+            this.pdfFiles.Add(pdfFile);
+
+            this.ListBoxFiles.Items.Add(pdfFile.FileName);
         }
 
         this.ListBoxFiles.SelectedIndex = 0; // Ustaw pierwszy dodany plik jako zaznaczony
@@ -174,6 +183,12 @@ public partial class MainWindow
 
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
+        // jeśli listbox jest pusty, to nic nie rób
+        if (this.ListBoxFiles.Items.Count == 0)
+        {
+            return;
+        }
+
         int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
 
         string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
@@ -211,5 +226,77 @@ public partial class MainWindow
             // Ponownie załaduj plik PDF do kontrolki PdfViewer
             this.PdfViewer.Load(fileName);
         }
+    }
+
+    // Obsługa skrótów klawiaturowych w ListBoxFiles
+    private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
+    {
+        // jeśli listbox jest pusty, to nic nie rób
+        if (this.ListBoxFiles.Items.Count == 0)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            // Obrót strony w prawo (Ctrl + Right Arrow)
+            case Key.Right:
+            {
+                int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
+
+                string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
+
+                PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobierz załadowany dokument PDF z kontrolki PdfViewer
+
+                // Sprawdź, czy dokument ma co najmniej jedną stronę i czy pierwsza strona jest typu PdfLoadedPage
+                if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
+                {
+                    int newRotation = ((int)loadedPage.Rotation + (int)PdfPageRotateAngle.RotateAngle90) % 360; // Oblicz nowy kąt obrotu
+
+                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
+
+                    // Zapisz zmodyfikowany dokument PDF do pliku, nadpisując oryginalny plik
+                    loadedDocument.Save(fileName);
+
+                    // Ponownie załaduj plik PDF do kontrolki PdfViewer
+                    this.PdfViewer.Load(fileName);
+                }
+
+                break;
+            }
+
+            // Obrót strony w lewo (Ctrl + Left Arrow)
+            case Key.Left:
+            {
+                int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
+
+                string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
+
+                PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobierz załadowany dokument PDF z kontrolki PdfViewer
+
+                // Sprawdź, czy dokument ma co najmniej jedną stronę i czy pierwsza strona jest typu PdfLoadedPage
+                if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
+                {
+                    int newRotation = ((int)loadedPage.Rotation - (int)PdfPageRotateAngle.RotateAngle90 + 360) % 360; // Oblicz nowy kąt obrotu
+
+                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
+
+                    // Zapisz zmodyfikowany dokument PDF do pliku, nadpisując oryginalny plik
+                    loadedDocument.Save(fileName);
+
+                    // Ponownie załaduj plik PDF do kontrolki PdfViewer
+                    this.PdfViewer.Load(fileName);
+                }
+
+                break;
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    private void ButtonEdit_Click(object sender, RoutedEventArgs e)
+    {
+
     }
 }
