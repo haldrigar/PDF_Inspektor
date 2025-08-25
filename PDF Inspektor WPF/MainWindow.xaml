@@ -22,11 +22,27 @@
         </Grid.ColumnDefinitions>
 
         <GroupBox Header="Podgląd pliku" Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
-            <pdfViewer:PdfViewerControl x:Name="PdfViewer" DocumentLoaded="PdfViewer_DocumentLoaded" CursorMode="HandTool">
+
+            <pdfViewer:PdfViewerControl x:Name="PdfViewer" 
+                                        DocumentLoaded="PdfViewer_DocumentLoaded" 
+                                        CursorMode="HandTool" 
+                                        EnableLayers="False" 
+                                        EnableRedactionTool="False" 
+                                        EnableNotificationBar="False" 
+                                        IsBookmarkEnabled="False" 
+                                        IsTextSearchEnabled="False" 
+                                        IsTextSelectionEnabled="False" 
+                                        ShowHorizontalScrollBar="False" 
+                                        ShowScrollbar="False" 
+                                        ShowVerticalScrollBar="False" 
+                                        IsManipulationEnabled="False"
+                                        ZoomMode="FitPage">
                 <pdfViewer:PdfViewerControl.Background>
                     <ImageBrush ImageSource="/background.png"/>
                 </pdfViewer:PdfViewerControl.Background>
+
             </pdfViewer:PdfViewerControl>
+
         </GroupBox>
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Lista plików" >
@@ -44,6 +60,7 @@
                     Width="100" 
                     Height="20" 
                     Margin="5,10,0,0" 
+                    ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
                     Click="ButtonRotate_OnClick"
                     MouseRightButtonDown="ButtonRotate_OnClick"/>
 

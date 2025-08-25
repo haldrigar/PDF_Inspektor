@@ -5,11 +5,11 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
-
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Exporting;
 using Syncfusion.Pdf.Parsing;
+
+namespace PDF_Inspektor_OLD;
 
 /// <summary>
 /// Klasa narzędziowa do obsługi plików PDF.

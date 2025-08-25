@@ -7,8 +7,6 @@
 
 using System.Text.Json;
 
-using PDF_Inspektor;
-
 using Syncfusion.Windows.Forms.PdfViewer;
 
 namespace PDF_Inspektor_OLD;

@@ -43,13 +43,8 @@ public partial class MainWindow
         this.PdfViewer.IsTextSearchEnabled = false; // Wyłącza wyszukiwanie tekstu
 
         this.PdfViewer.ThumbnailSettings.IsVisible = false; // Ukrywa miniatury
-        this.PdfViewer.IsBookmarkEnabled = false; // Ukrywa zakładki
-        this.PdfViewer.EnableLayers = false; // Ukrywa warstwy
         this.PdfViewer.PageOrganizerSettings.IsIconVisible = false; // Ukrywa ikonę organizatora stron
-        this.PdfViewer.EnableRedactionTool = false; // Wyłącza narzędzie do redagowania
         this.PdfViewer.FormSettings.IsIconVisible = false; // Ukrywa ikonę formularzy
-
-        this.PdfViewer.ShowScrollbar = false; // Ukrywa paski przewijania
 
         /* ---------------------- KONFIGURACJA ------------------------------------ */
 
