@@ -7,12 +7,17 @@
 
 namespace PDF_Inspektor;
 
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+
+using Microsoft.Win32;
 
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Parsing;
@@ -21,282 +26,285 @@ using Syncfusion.Windows.PdfViewer;
 /// <summary>
 /// Interaction logic for MainWindow.xaml.
 /// </summary>
-public partial class MainWindow
+public partial class MainWindow : Window
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true }; // Opcje serializacji JSON
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private readonly string _jsonPath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
+    private readonly AppSettings _appSettings;
+    private FileSystemWatcher _fileWatcher = new();
 
-    private readonly string jsonPath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json"); // Ścieżka do pliku konfiguracyjnego
+    // Używamy ObservableCollection do automatycznej aktualizacji UI
+    public ObservableCollection<PdfFile> PdfFiles { get; } = new();
 
-    private readonly AppSettings appSettings; // Obiekt przechowujący ustawienia aplikacji
+    // Właściwość dla bindowania zaznaczonego elementu
+    public PdfFile? SelectedPdfFile { get; set; }
 
-    private readonly List<PdfFile> pdfFiles = []; // Lista przechowująca informacje o plikach PDF
+    // Kolekcja do śledzenia ostatnio dodanych plików w celu deduplikacji
+    private readonly HashSet<string> _recentlyAddedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
-    /// </summary>
     public MainWindow()
     {
         this.InitializeComponent();
+        this.DataContext = this; // Ustawienie kontekstu danych dla bindowania
 
-        this.PdfViewer.ToolbarSettings.ShowFileTools = false; // Ukrywa narzędzia plikowe
-        this.PdfViewer.ToolbarSettings.ShowAnnotationTools = false; // Ukrywa narzędzia adnotacji
-        this.PdfViewer.ToolbarSettings.ShowPageNavigationTools = false; // Ukrywa narzędzia nawigacji stron
-        this.PdfViewer.IsTextSearchEnabled = false; // Wyłącza wyszukiwanie tekstu
-
-        this.PdfViewer.ThumbnailSettings.IsVisible = false; // Ukrywa miniatury
-        this.PdfViewer.PageOrganizerSettings.IsIconVisible = false; // Ukrywa ikonę organizatora stron
-        this.PdfViewer.FormSettings.IsIconVisible = false; // Ukrywa ikonę formularzy
-
-        /* ---------------------- KONFIGURACJA ------------------------------------ */
-
-        // Jeśli plik konfiguracyjny nie istnieje, utwórz go z domyślnymi ustawieniami
-        if (!File.Exists(this.jsonPath))
+        if (!File.Exists(this._jsonPath))
         {
             this.SaveConfig();
         }
 
-        string json = File.ReadAllText(this.jsonPath); // Wczytaj zawartość pliku konfiguracyjnego
+        string json = File.ReadAllText(this._jsonPath);
+        this._appSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+    }
 
-        this.appSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings(); // Deserializuj ustawienia aplikacji
-
-        /* ------------------------------------------------------------------------ */
+    protected override void OnClosed(EventArgs e)
+    {
+        this._fileWatcher?.Dispose();
+        base.OnClosed(e);
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        this.Top = this.appSettings.WindowTop; // Ustaw pozycję okna na górze
-        this.Left = this.appSettings.WindowLeft; // Ustaw pozycję okna z lewej strony
-    }
-
-    private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
-    {
-        this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool; // Ustawia kursor na narzędzie ręki
-
-        this.PdfViewer.ZoomMode = ZoomMode.FitPage; // Ustaw tryb powiększenia na dopasowanie do strony
-
-        int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
-
-        PdfFile selectedPdfFile = this.pdfFiles[selectedIndex]; // Pobierz obiekt PdfFile na podstawie indeksu
-
-        string dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument); // Pobierz rozdzielczość DPI pierwszego obrazu w dokumencie PDF
-
-        // Jeśli DPI jest różne od 300x300, ustaw kolor tła etykiety na pomarańczowo-czerwony
-        if (dpi != "300 x 300")
-        {
-            this.StatusBarItemMain.Background = new SolidColorBrush(Colors.PaleVioletRed);
-        }
-        else // Jeśli DPI jest równe 300x300, ustaw kolor tła etykiety na domyślny kolor kontrolki
-        {
-            this.StatusBarItemMain.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
-        }
-
-        // Zaktualizuj tekst etykiety w pasku stanu z informacjami o pliku PDF
-        this.StatusBarItemMain.Content = $"Plik: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize:F0} KB | DPI: {dpi} | Obrót: {this.PdfViewer.LoadedDocument.Pages[0].Rotation}";
-
-        // Ustaw fokus na zaznaczony element w ListBoxFiles
-        ListBoxItem? item = this.ListBoxFiles.ItemContainerGenerator.ContainerFromIndex(selectedIndex) as ListBoxItem;
-        item?.Focus();
-    }
-
-    private void SaveConfig()
-    {
-        string json = JsonSerializer.Serialize(this.appSettings, JsonOptions);
-
-        File.WriteAllText(this.jsonPath, json);
+        this.Top = this._appSettings.WindowTop;
+        this.Left = this._appSettings.WindowLeft;
     }
 
     private void Window_Closed(object sender, EventArgs e)
     {
-        // Zapisz ustawienia aplikacji przy zamykaniu okna
-        this.appSettings.WindowTop = this.Top;
-        this.appSettings.WindowLeft = this.Left;
-
+        this._appSettings.WindowTop = this.Top;
+        this._appSettings.WindowLeft = this.Left;
         this.SaveConfig();
     }
 
-    // Obsługa przeciągania i upuszczania plików do ListBoxFiles
+    private void SaveConfig()
+    {
+        string json = JsonSerializer.Serialize(this._appSettings, JsonOptions);
+        File.WriteAllText(this._jsonPath, json);
+    }
+
     private void ListBoxFiles_DragOver(object sender, DragEventArgs e)
     {
-        // Sprawdzenie, czy przesyłane są pliki lub foldery
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
-
-        e.Handled = true; // Zatrzymuje dalszą propagację zdarzenia i obsługa nie idzie w górę do elementu nadrzędnego
+        e.Handled = true;
     }
 
-    // Obsługa upuszczania plików do ListBoxFiles
     private void ListBoxFiles_Drop(object sender, DragEventArgs e)
     {
-        // Pobierz listę upuszczonych plików lub folderów
-        if (e.Data.GetData(DataFormats.FileDrop) is not string[] droppedItems)
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] droppedItems)
         {
-            return;
+            this.LoadFiles(droppedItems);
         }
-
-        this.ListBoxFiles.Items.Clear(); // Wyczyść istniejące elementy w ListBox
-        this.pdfFiles.Clear(); // Wyczyść istniejące elementy w liście pdfFiles
-
-        List<string> items = [];
-
-        // Przetwórz każdy upuszczony element
-        foreach (string item in droppedItems)
-        {
-            // Dodaj plik PDF, jeśli to plik
-            if (File.Exists(item) && string.Equals(Path.GetExtension(item), ".pdf", StringComparison.OrdinalIgnoreCase))
-            {
-                items.Add(item);
-            }
-            else if (Directory.Exists(item)) // Dodaj wszystkie pliki PDF z folderu i podfolderów
-            {
-                items.AddRange(Directory.GetFiles(item, "*.pdf", SearchOption.AllDirectories));
-            }
-        }
-
-        string[] itemsToSort = [.. items]; // Skopiuj do tablicy do sortowania
-
-        Array.Sort(itemsToSort, new NaturalStringComparer()); // Sortowanie naturalne
-
-        foreach (string item in itemsToSort)
-        {
-            PdfFile pdfFile = new PdfFile(this.ListBoxFiles.Items.Count - 1, item); // Utwórz obiekt PdfFile
-
-            this.pdfFiles.Add(pdfFile);
-
-            this.ListBoxFiles.Items.Add(pdfFile.FileName);
-        }
-
-        this.ListBoxFiles.SelectedIndex = 0; // Ustaw pierwszy dodany plik jako zaznaczony
     }
 
-    // Obsługa zmiany zaznaczenia w ListBoxFiles
+    private void ButtonMonitorDirectory_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFolderDialog dialog = new() { Title = "Wybierz folder do przetwarzania" };
+
+        if (dialog.ShowDialog() == true)
+        {
+            this.LoadFiles([dialog.FolderName]);
+            this.SetupFileSystemWatcher(dialog.FolderName);
+        }
+    }
+
+    /// <summary>
+    /// Centralna metoda do ładowania plików z podanych ścieżek (pliki lub foldery).
+    /// </summary>
+    private void LoadFiles(IEnumerable<string> paths)
+    {
+        this.PdfFiles.Clear();
+
+        var filesToLoad = new List<string>();
+
+        foreach (string path in paths)
+        {
+            if (File.Exists(path) && path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                filesToLoad.Add(path);
+            }
+            else if (Directory.Exists(path))
+            {
+                filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.AllDirectories));
+            }
+        }
+
+        filesToLoad.Sort(new NaturalStringComparer());
+
+        foreach (string file in filesToLoad)
+        {
+            this.PdfFiles.Add(new PdfFile(this.PdfFiles.Count, file));
+        }
+
+        // Zamiast ustawiać indeks, ustawiamy powiązaną właściwość
+        if (this.PdfFiles.Any())
+        {
+            this.SelectedPdfFile = this.PdfFiles.First();
+
+            // Ręczna aktualizacja, aby SelectionChanged na pewno się wywołało
+            this.ListBoxFiles.SelectedItem = this.SelectedPdfFile;
+        }
+        else
+        {
+            this.SelectedPdfFile = null;
+        }
+    }
+
     private void ListBoxFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
-
-        // Sprawdzenie, czy indeks jest prawidłowy, bo po dodaniu nowych plików do listy wywoływane jest jej czyszczenie a to wywołuje to zdarzenie
-        if (selectedIndex >= 0)
+        // Sprawdzamy, czy zaznaczony element jest typu PdfFile
+        if (ListBoxFiles.SelectedItem is PdfFile selected)
         {
-            PdfFile selectedPdfFile = this.pdfFiles[selectedIndex]; // Pobierz obiekt PdfFile na podstawie indeksu
-
-            this.PdfViewer.Load(selectedPdfFile.FilePath); // Załaduj wybrany plik PDF do kontrolki PdfViewer
+            // Aktualizujemy właściwość SelectedPdfFile, co jest dobrą praktyką
+            this.SelectedPdfFile = selected;
+            this.PdfViewer.Load(selected.FilePath);
         }
+    }
+
+    private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
+    {
+        this.PdfViewer.Width = double.NaN;
+        this.PdfViewer.Height = double.NaN;
+        this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
+
+        if (this.SelectedPdfFile is not PdfFile currentPdfFile) return;
+
+        string dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+        currentPdfFile.DPI = dpi;
+
+        this.StatusBarItemMain.Background = dpi != "300 x 300" ? new SolidColorBrush(Colors.Red) : new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
+
+        this.StatusBarItemMain.Content = $"Plik: {currentPdfFile.FileName} | Rozmiar: {currentPdfFile.FileSize:F0} KB | DPI: {dpi} | Obrót: {this.PdfViewer.LoadedDocument.Pages[0].Rotation}";
     }
 
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
-        // jeśli listbox jest pusty, to nic nie rób
-        if (this.ListBoxFiles.Items.Count == 0)
+        bool rotateRight = e.RoutedEvent.Name == "Click";
+        this.RotateAndSave(rotateRight);
+    }
+
+    private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Right)
         {
-            return;
+            this.RotateAndSave(true);
+            e.Handled = true;
         }
-
-        int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
-
-        string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
-
-        PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobierz załadowany dokument PDF z kontrolki PdfViewer
-
-        // Sprawdź, czy dokument ma co najmniej jedną stronę i czy pierwsza strona jest typu PdfLoadedPage
-        if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
+        else if (e.Key == Key.Left)
         {
-            // Obsługa zdarzenia kliknięcia lewym lub prawym przyciskiem myszy
-            switch (e.RoutedEvent.Name)
-            {
-                case "Click": // Lewy przycisk myszy
-                {
-                    int newRotation = ((int)loadedPage.Rotation + (int)PdfPageRotateAngle.RotateAngle90) % 360; // Oblicz nowy kąt obrotu
-
-                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
-
-                    break;
-                }
-
-                case "MouseRightButtonDown": // Prawy przycisk myszy
-                {
-                    int newRotation = ((int)loadedPage.Rotation - (int)PdfPageRotateAngle.RotateAngle90 + 360) % 360; // Oblicz nowy kąt obrotu
-
-                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
-
-                    break;
-                }
-            }
-
-            // Zapisz zmodyfikowany dokument PDF do pliku, nadpisując oryginalny plik
-            loadedDocument.Save(fileName);
-
-            // Ponownie załaduj plik PDF do kontrolki PdfViewer
-            this.PdfViewer.Load(fileName);
+            this.RotateAndSave(false);
+            e.Handled = true;
         }
     }
 
-    // Obsługa skrótów klawiaturowych w ListBoxFiles
-    private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
+    private void RotateAndSave(bool rotateRight)
     {
-        // jeśli listbox jest pusty, to nic nie rób
-        if (this.ListBoxFiles.Items.Count == 0)
-        {
-            return;
-        }
+        if (this.SelectedPdfFile is not PdfFile currentFile) return;
 
-        switch (e.Key)
-        {
-            // Obrót strony w prawo (Ctrl + Right Arrow)
-            case Key.Right:
-            {
-                int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
+        string filePath = currentFile.FilePath;
+        PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument;
 
-                string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
+        if (loadedDocument.Pages[0] is not PdfLoadedPage loadedPage) return;
 
-                PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobierz załadowany dokument PDF z kontrolki PdfViewer
+        int rotationAngle = (int)PdfPageRotateAngle.RotateAngle90;
+        int currentRotation = (int)loadedPage.Rotation;
+        int newRotation = rotateRight ? (currentRotation + rotationAngle) % 360 : (currentRotation - rotationAngle + 360) % 360;
 
-                // Sprawdź, czy dokument ma co najmniej jedną stronę i czy pierwsza strona jest typu PdfLoadedPage
-                if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
-                {
-                    int newRotation = ((int)loadedPage.Rotation + (int)PdfPageRotateAngle.RotateAngle90) % 360; // Oblicz nowy kąt obrotu
-
-                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
-
-                    // Zapisz zmodyfikowany dokument PDF do pliku, nadpisując oryginalny plik
-                    loadedDocument.Save(fileName);
-
-                    // Ponownie załaduj plik PDF do kontrolki PdfViewer
-                    this.PdfViewer.Load(fileName);
-                }
-
-                break;
-            }
-
-            // Obrót strony w lewo (Ctrl + Left Arrow)
-            case Key.Left:
-            {
-                int selectedIndex = this.ListBoxFiles.SelectedIndex; // Indeks zaznaczonego elementu w ListBox
-
-                string fileName = this.pdfFiles[selectedIndex].FilePath; // Nazwa zaznaczonego pliku PDF
-
-                PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobierz załadowany dokument PDF z kontrolki PdfViewer
-
-                // Sprawdź, czy dokument ma co najmniej jedną stronę i czy pierwsza strona jest typu PdfLoadedPage
-                if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
-                {
-                    int newRotation = ((int)loadedPage.Rotation - (int)PdfPageRotateAngle.RotateAngle90 + 360) % 360; // Oblicz nowy kąt obrotu
-
-                    loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
-
-                    // Zapisz zmodyfikowany dokument PDF do pliku, nadpisując oryginalny plik
-                    loadedDocument.Save(fileName);
-
-                    // Ponownie załaduj plik PDF do kontrolki PdfViewer
-                    this.PdfViewer.Load(fileName);
-                }
-
-                break;
-            }
-        }
-
-        e.Handled = true;
+        loadedPage.Rotation = (PdfPageRotateAngle)newRotation;
+        loadedDocument.Save(filePath);
+        this.PdfViewer.Load(filePath);
     }
 
     private void ButtonEdit_Click(object sender, RoutedEventArgs e)
     {
+        if (this.SelectedPdfFile is not PdfFile currentFile) return;
 
+        string filePath = currentFile.FilePath;
+        DateTime lastWriteTime = File.GetLastWriteTime(filePath);
+        string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "IrfanView", "IrfanViewPortable.exe");
+
+        Process process = new()
+        {
+            StartInfo = new ProcessStartInfo(irfanViewPath, $"\"{filePath}\"") { UseShellExecute = false },
+            EnableRaisingEvents = true,
+        };
+
+        process.Exited += (_, _) =>
+        {
+            this.Dispatcher.Invoke(() =>
+            {
+                if (File.GetLastWriteTime(filePath) != lastWriteTime)
+                {
+                    this.PdfViewer.Load(filePath);
+                }
+            });
+            process.Dispose();
+        };
+
+        process.Start();
     }
+
+    private void SetupFileSystemWatcher(string path)
+    {
+        this._fileWatcher?.Dispose();
+        this._fileWatcher = new FileSystemWatcher(path)
+        {
+            NotifyFilter = NotifyFilters.FileName,
+            Filter = "*.pdf",
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true,
+        };
+        this._fileWatcher.Created += this.FileWatcher_Created;
+    }
+
+    private async void FileWatcher_Created(object sender, FileSystemEventArgs e)
+    {
+        // Użyj lock, aby zapewnić bezpieczeństwo wątkowe dla HashSet
+        lock (this._recentlyAddedFiles)
+        {
+            // Jeśli plik jest już przetwarzany, zignoruj to zdarzenie
+            if (_recentlyAddedFiles.Contains(e.FullPath))
+            {
+                Debug.WriteLine($"Zignorowano zduplikowane zdarzenie dla pliku: {e.Name}");
+                return;
+            }
+
+            // Dodaj plik do zestawu, aby oznaczyć go jako "w trakcie przetwarzania"
+            _recentlyAddedFiles.Add(e.FullPath);
+        }
+
+        try
+        {
+            // Oczekiwanie na gotowość pliku
+            bool isReady = await Task.Run(() => SafeFileReadyChecker.IsFileReady(e.FullPath, TimeSpan.FromSeconds(30)));
+
+            if (isReady)
+            {
+                Debug.WriteLine($"Plik {e.Name} jest gotowy. Dodaję do listy.");
+                await this.Dispatcher.InvokeAsync(() =>
+                {
+                    if (!this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var newPdf = new PdfFile(this.PdfFiles.Count, e.FullPath);
+                        this.PdfFiles.Add(newPdf);
+                        this.ListBoxFiles.SelectedItem = newPdf;
+                        this.ListBoxFiles.ScrollIntoView(newPdf);
+                    }
+                });
+            }
+            else
+            {
+                Debug.WriteLine($"Timeout: Plik {e.Name} nie ustabilizował się na czas.");
+            }
+        }
+        finally
+        {
+            // Po krótkim opóźnieniu usuń plik z listy, aby mógł być ponownie przetworzony w przyszłości.
+            // Opóźnienie daje pewność, że wszystkie zduplikowane zdarzenia zostaną przechwycone.
+            await Task.Delay(2000);
+            lock (this._recentlyAddedFiles)
+            {
+                this._recentlyAddedFiles.Remove(e.FullPath);
+            }
+        }
+    }
+
 }

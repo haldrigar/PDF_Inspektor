@@ -10,11 +10,11 @@ namespace PDF_Inspektor;
 using System.IO;
 
 /// <summary>
-/// KLasa reprezentująca plik PDF.
+/// Klasa reprezentująca plik PDF.
 /// </summary>
 /// <param name="fileIndex">Indeks pliku PDF w liście.</param>
 /// <param name="filePath">Ścieżka do pliku PDF.</param>
-internal class PdfFile(int fileIndex, string filePath)
+public class PdfFile(int fileIndex, string filePath)
 {
     /// <summary>
     /// Pobiera lub ustawia indeks pliku PDF w liście.
@@ -34,5 +34,10 @@ internal class PdfFile(int fileIndex, string filePath)
     /// <summary>
     /// Pobiera lub ustawia rozmiar pliku PDF w kilobajtach (KB).
     /// </summary>
-    public double FileSize { get; set; } = new FileInfo(filePath).Length / 1024.0; // Rozmiar pliku w KB
+    public double FileSize { get; set; } = new FileInfo(filePath).Length / 1024.0;
+
+    /// <summary>
+    /// Pobiera lub ustawia rozdzielczość DPI pliku PDF.
+    /// </summary>
+    public string DPI { get; set; } = string.Empty;
 }

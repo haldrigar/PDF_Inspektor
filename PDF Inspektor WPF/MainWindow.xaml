@@ -26,69 +26,78 @@
             <ColumnDefinition Width="400"/>
         </Grid.ColumnDefinitions>
 
-        <GroupBox Header="Podgląd pliku" Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
+        <GroupBox Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Header="Podgląd pliku">
 
-            <pdfViewer:PdfViewerControl x:Name="PdfViewer" 
-                                        DocumentLoaded="PdfViewer_DocumentLoaded" 
-                                        CursorMode="HandTool" 
-                                        EnableLayers="False" 
-                                        EnableRedactionTool="False" 
-                                        EnableNotificationBar="False" 
-                                        IsBookmarkEnabled="False" 
-                                        IsTextSearchEnabled="False" 
-                                        IsTextSelectionEnabled="False" 
-                                        ShowHorizontalScrollBar="False" 
-                                        ShowScrollbar="False" 
-                                        ShowVerticalScrollBar="False" 
-                                        IsManipulationEnabled="False"
-                                        ZoomMode="FitPage" 
-                                        Background="White">
-            </pdfViewer:PdfViewerControl>
+            <pdfViewer:PdfDocumentView x:Name="PdfViewer" 
+                DocumentLoaded="PdfViewer_DocumentLoaded" 
+                CursorMode="HandTool" 
+                IsTextSearchEnabled="False" 
+                IsTextSelectionEnabled="False" 
+                ShowHorizontalScrollBar="False" 
+                ShowScrollbar="False" 
+                ShowVerticalScrollBar="False" 
+                IsManipulationEnabled="False"
+                ZoomMode="FitPage" 
+                Background="Black" />
 
         </GroupBox>
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Lista plików" >
-            <ListBox x:Name="ListBoxFiles" 
-                     AllowDrop="True" 
-                     DragOver="ListBoxFiles_DragOver" 
-                     Drop="ListBoxFiles_Drop" 
-                     SelectionChanged="ListBoxFiles_SelectionChanged" KeyDown="ListBoxFiles_KeyDown"/>
+
+            <ListBox x:Name="ListBoxFiles"
+                     AllowDrop="True"
+                     ItemsSource="{Binding PdfFiles}"
+                     DisplayMemberPath="FileName"
+                     SelectedItem="{Binding SelectedPdfFile, Mode=TwoWay}"
+                     SelectionChanged="ListBoxFiles_SelectionChanged"
+                     DragOver="ListBoxFiles_DragOver"
+                     Drop="ListBoxFiles_Drop"
+                     KeyDown="ListBoxFiles_KeyDown"/>
+
         </GroupBox>
 
-        <GroupBox Grid.Row="1" Grid.Column="1" Header="Opcje" />
+        <GroupBox Grid.Row="1" Grid.Column="1" Header="Opcje" >
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="ButtonMonitorDirectory" Content="Otwórz katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click"/>
+            </Grid>
+        </GroupBox>
 
         <GroupBox Grid.Row="2" Grid.Column="1" Header="Operacje" >
 
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
 
                 <Button x:Name="ButtonRotate" 
                         Content="Obrót" 
-                        Width="100" 
-                        Height="25" 
                         Grid.Column="0"
                         ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
                         Click="ButtonRotate_OnClick"
-                        MouseRightButtonDown="ButtonRotate_OnClick" 
-                        HorizontalAlignment="Center" 
-                        VerticalAlignment="Center"/>
-                
+                        MouseRightButtonDown="ButtonRotate_OnClick" Margin="5,5,5,5"/>
+
                 <Button x:Name="ButtonEdit" 
-                        Content="Edycja" 
-                        Width="100"
-                        Height="25"
+                        Content="Edycja"
+                        Grid.Row="0" 
                         Grid.Column="1" 
-                        HorizontalAlignment="Center" 
-                        VerticalAlignment="Center" 
-                        Click="ButtonEdit_Click"/>
+                        Click="ButtonEdit_Click" Margin="5,5,5,5"/>
 
             </Grid>
-
-
-
 
         </GroupBox>
 
