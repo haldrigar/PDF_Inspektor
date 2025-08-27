@@ -1,7 +1,14 @@
-﻿using System.Diagnostics;
-using System.IO;
+﻿// ====================================================================================================
+// <copyright file="SafeFileReadyChecker.cs" company="Grzegorz Gogolewski">
+// Copyright (c) Grzegorz Gogolewski. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// </copyright>
+// ====================================================================================================
 
 namespace PDF_Inspektor;
+
+using System.Diagnostics;
+using System.IO;
 
 /// <summary>
 /// Klasa pomocnicza do bezpiecznego sprawdzania, czy plik jest gotowy do odczytu,
@@ -24,25 +31,28 @@ public static class SafeFileReadyChecker
         {
             if (!File.Exists(filePath))
             {
-                Thread.Sleep(250);
+                Thread.Sleep(100);
+
                 continue;
             }
 
             try
             {
-                // Krok 1: Sprawdzenie stabilności rozmiaru pliku
+                // Sprawdzenie stabilności rozmiaru pliku
                 long initialSize = new FileInfo(filePath).Length;
+
                 Thread.Sleep(stabilityCheckTimeMs);
+
                 long finalSize = new FileInfo(filePath).Length;
 
                 if (initialSize > 0 && initialSize == finalSize)
                 {
-                    // Krok 2: Spróbuj otworzyć plik do odczytu (bez blokowania)
-                    using (FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    {
-                        Debug.WriteLine($"Plik '{filePath}' jest gotowy do użycia.");
-                        return true;
-                    }
+                    // Spróbuj otworzyć plik do odczytu (bez blokowania)
+                    using FileStream stream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+                    Debug.WriteLine($"Plik '{filePath}' jest gotowy do użycia.");
+
+                    return true;
                 }
             }
             catch (IOException ex)
@@ -52,11 +62,13 @@ public static class SafeFileReadyChecker
             catch (Exception ex)
             {
                 Debug.WriteLine($"Wystąpił nieoczekiwany błąd podczas sprawdzania pliku '{filePath}': {ex.Message}");
+
                 return false;
             }
         }
 
         Debug.WriteLine($"Plik '{filePath}' nie stał się gotowy w ciągu {timeout.TotalSeconds} sekund.");
+
         return false;
     }
 }

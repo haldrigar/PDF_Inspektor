@@ -12,15 +12,9 @@ using System.IO;
 /// <summary>
 /// Klasa reprezentująca plik PDF.
 /// </summary>
-/// <param name="fileIndex">Indeks pliku PDF w liście.</param>
 /// <param name="filePath">Ścieżka do pliku PDF.</param>
-public class PdfFile(int fileIndex, string filePath)
+public class PdfFile(string filePath)
 {
-    /// <summary>
-    /// Pobiera lub ustawia indeks pliku PDF w liście.
-    /// </summary>
-    public int FileIndex { get; set; } = fileIndex;
-
     /// <summary>
     /// Pobiera lub ustawia ścieżkę do pliku PDF.
     /// </summary>
@@ -34,10 +28,10 @@ public class PdfFile(int fileIndex, string filePath)
     /// <summary>
     /// Pobiera lub ustawia rozmiar pliku PDF w kilobajtach (KB).
     /// </summary>
-    public double FileSize { get; set; } = new FileInfo(filePath).Length / 1024.0;
+    public long FileSize { get; set; } = new FileInfo(filePath).Length;
 
     /// <summary>
-    /// Pobiera lub ustawia rozdzielczość DPI pliku PDF.
+    /// Pobiera lub ustawia datę i godzinę ostatniej modyfikacji pliku.
     /// </summary>
-    public string DPI { get; set; } = string.Empty;
+    public DateTime LastWriteTime { get; set; } = new FileInfo(filePath).LastWriteTime;
 }

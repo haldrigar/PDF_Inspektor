@@ -10,8 +10,8 @@
         Title="GISNET PDF Inspektor" 
         Height="600" 
         Width="1200" 
-        Loaded="Window_Loaded" 
-        Closed="Window_Closed">
+        Loaded="Window_Loaded"
+        Closed="Window_Closed" SizeChanged="Window_SizeChanged">
     <Grid>
 
         <Grid.RowDefinitions>
@@ -38,7 +38,7 @@
                 ShowVerticalScrollBar="False" 
                 IsManipulationEnabled="False"
                 ZoomMode="FitPage" 
-                Background="Black" />
+                Background="White" />
 
         </GroupBox>
 
@@ -67,7 +67,7 @@
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="ButtonMonitorDirectory" Content="Otwórz katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click"/>
+                <Button x:Name="ButtonMonitorDirectory" Content="Monitoruj katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click"/>
             </Grid>
         </GroupBox>
 
