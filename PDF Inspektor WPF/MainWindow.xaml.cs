@@ -106,14 +106,8 @@ public partial class MainWindow
             // Ustawienie zaznaczenia na pierwszy plik z listy, jeśli lista nie jest pusta
             if (this.PdfFiles.Count > 0)
             {
-                // Ustawienie zaznaczenia na ostatni plik z listy
-                this.SelectedPdfFile = this.PdfFiles.First();
-
-                // Ręczna aktualizacja, aby SelectionChanged na pewno się wywołało
-                this.ListBoxFiles.SelectedItem = this.SelectedPdfFile;
-
-                // Przewiń do zaznaczonego elementu
-                this.ListBoxFiles.ScrollIntoView(this.SelectedPdfFile);
+                // Ustawienie zaznaczenia na pierwszy plik z listy
+                this.SelectPdfFile(this.PdfFiles.First());
             }
         }
     }
@@ -140,13 +134,7 @@ public partial class MainWindow
         if (this.PdfFiles.Count > 0)
         {
             // Ustawienie zaznaczenia na ostatni plik z listy
-            this.SelectedPdfFile = this.PdfFiles.Last();
-
-            // Ręczna aktualizacja, aby SelectionChanged na pewno się wywołało
-            this.ListBoxFiles.SelectedItem = this.SelectedPdfFile;
-
-            // Przewiń do zaznaczonego elementu
-            this.ListBoxFiles.ScrollIntoView(this.SelectedPdfFile);
+            this.SelectPdfFile(this.PdfFiles.Last());
         }
 
         // Ustawienie FileSystemWatcher na wybrany folder
@@ -181,6 +169,12 @@ public partial class MainWindow
         foreach (string file in filesToLoad)
         {
             this.PdfFiles.Add(new PdfFile(file));
+        }
+
+        // Jeśli lista jest pusta, wyczyść widok PdfViewer
+        if (this.PdfFiles.Count == 0)
+        {
+            this.PdfViewer.Unload(true);
         }
     }
 
@@ -228,7 +222,16 @@ public partial class MainWindow
 
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpi} | Obrót: {this.PdfViewer.LoadedDocument.Pages[0].Rotation}";
+            if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
+            {
+                PdfPageRotateAngle rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation; // Pobierz kąt obrotu pierwszej strony
+
+                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpi} | Obrót: {rotation}";
+            }
+            else
+            {
+                this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
+            }
         }
         else
         {
@@ -400,8 +403,8 @@ public partial class MainWindow
                     // Ustawienie zaznaczenia na nowo dodany plik
                     PdfFile selectedPdfFile = this.PdfFiles.First(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
 
-                    this.ListBoxFiles.SelectedItem = selectedPdfFile;
-                    this.ListBoxFiles.ScrollIntoView(selectedPdfFile);
+                    // Funkcja pomocnicza do zaznaczenia pliku i przewinięcia do niego
+                    this.SelectPdfFile(selectedPdfFile);
                 }
             });
         }
@@ -432,6 +435,12 @@ public partial class MainWindow
 
                 // Usuń plik z listy
                 this.PdfFiles.Remove(fileToRemove);
+
+                // Jeśli lista jest pusta, wyczyść widok PdfViewer
+                if (this.PdfFiles.Count == 0)
+                {
+                    this.PdfViewer.Unload(true);
+                }
             }
         });
     }
@@ -521,5 +530,18 @@ public partial class MainWindow
         // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
+    }
+
+    // Funkcja pomocnicza do zaznaczania pliku PDF w ListBox i przewijania do niego
+    private void SelectPdfFile(PdfFile? file)
+    {
+        this.SelectedPdfFile = file;
+
+        this.ListBoxFiles.SelectedItem = file;
+
+        if (file != null)
+        {
+            this.ListBoxFiles.ScrollIntoView(file);
+        }
     }
 }

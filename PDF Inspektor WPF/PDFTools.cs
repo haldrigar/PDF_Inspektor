@@ -24,9 +24,21 @@ internal static class PDFTools
     /// <returns>Wartość DPI.</returns>
     public static string GetDPI(PdfLoadedDocument pdfLoadedDocument)
     {
+        // Sprawdź, czy dokument zawiera strony
+        if (pdfLoadedDocument.Pages.Count <= 0)
+        {
+            return "0 x 0";
+        }
+
         PdfLoadedPage page = (PdfLoadedPage)pdfLoadedDocument.Pages[0]; // Pobierz pierwszą stronę dokumentu
 
-        PdfImageInfo imgInfo = page.ImagesInfo[0]; // Pobierz informacje o pierwszym obrazie na stronie
+        // Sprawdź, czy strona zawiera obrazy
+        if (page.ImagesInfo.Length <= 0)
+        {
+            return "0 x 0";
+        }
+
+        PdfImageInfo imgInfo = page.ImagesInfo[0]; // Pobierz informacje o pierwszym obrazie na pierwszej stronie
 
         // Rozdzielczość w pikselach obrazu (oryginalny rozmiar obrazu) bez względu na skalowanie w PDF
         int widthPx = imgInfo.Image.Width;
