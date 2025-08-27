@@ -89,13 +89,24 @@
                         Grid.Column="0"
                         ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
                         Click="ButtonRotate_OnClick"
-                        MouseRightButtonDown="ButtonRotate_OnClick" Margin="5,5,5,5"/>
+                        Margin="5,5,5,5"
+                        MouseRightButtonDown="ButtonRotate_OnClick"/>
 
                 <Button x:Name="ButtonEdit" 
                         Content="Edycja"
                         Grid.Row="0" 
                         Grid.Column="1" 
-                        Click="ButtonEdit_Click" Margin="5,5,5,5"/>
+                        ToolTip="Otwórz plik w IrfanView"
+                        Margin="5,5,5,5"
+                        Click="ButtonEdit_Click"/>
+
+                <Button x:Name="ButtonDelete" 
+                        Content="Kasuj plik"
+                        Grid.Row="0" 
+                        Grid.Column="2"  
+                        ToolTip="Usuń plik z dysku"
+                        Margin="5,5,5,5"
+                        Click="ButtonDelete_Click"/>
 
             </Grid>
 

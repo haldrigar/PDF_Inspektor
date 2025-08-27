@@ -53,7 +53,7 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Pobiera lub ustawia lista plików PDF do wyświetlenia w interfejsie użytkownika.
+    /// Pobiera lista plików PDF do wyświetlenia w interfejsie użytkownika.
     /// </summary>
     public ObservableCollection<PdfFile> PdfFiles { get; } = [];
 
@@ -67,6 +67,9 @@ public partial class MainWindow
     {
         this.Top = this._appSettings.WindowTop;
         this.Left = this._appSettings.WindowLeft;
+
+        // Upewnij się, że okno jest widoczne na ekranie
+        this.EnsureWindowIsOnScreen();
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -171,8 +174,19 @@ public partial class MainWindow
             this.PdfFiles.Add(new PdfFile(file));
         }
 
-        // Jeśli lista jest pusta, wyczyść widok PdfViewer
-        if (this.PdfFiles.Count == 0)
+        // Ustawienie FileSystemWatcher, jeśli jest dokładnie jeden unikalny katalog
+        if (this.PdfFiles.Count > 0)
+        {
+            // Pobierz unikalne katalogi z listy plików PDF
+            List<string> directoriesList = this.PdfFiles.Select(p => p.DirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Distinct().ToList();
+
+            // Ustaw FileSystemWatcher tylko wtedy, gdy jest dokładnie jeden unikalny katalog
+            if (directoriesList.Count == 1)
+            {
+                this.SetupFileSystemWatcher(directoriesList.First());
+            }
+        }
+        else // Jeśli lista jest pusta, wyczyść widok PdfViewer
         {
             this.PdfViewer.Unload(true);
         }
@@ -264,6 +278,26 @@ public partial class MainWindow
 
             e.Handled = true;
         }
+        else if (e.Key == Key.Delete)
+        {
+            // Sprawdzenie, czy jest zaznaczony plik PDF
+            if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+            {
+                try
+                {
+                    if (File.Exists(selectedPdfFile.FilePath))
+                    {
+                        File.Delete(selectedPdfFile.FilePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas usuwania pliku:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+
+            e.Handled = true;
+        }
     }
 
     // Funkcja obracająca stronę i zapisująca zmiany
@@ -288,9 +322,6 @@ public partial class MainWindow
 
                 // Zapisanie zmian w pliku PDF
                 loadedDocument.Save(filePath);
-
-                // Ponowne załadowanie pliku PDF, aby odświeżyć widok
-                this.PdfViewer.Load(filePath);
             }
         }
     }
@@ -390,7 +421,7 @@ public partial class MainWindow
                     this.PdfFiles.Add(newPdf); // Dodaj do ObservableCollection
 
                     // Sortowanie listy w kolejności naturalnej po nazwie pliku
-                    List<PdfFile> sortedPdfFiles = this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer()).ToList();
+                    List<PdfFile> sortedPdfFiles = [.. this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer())];
 
                     // Wyczyść i ponownie dodaj posortowane elementy
                     this.PdfFiles.Clear();
@@ -461,7 +492,7 @@ public partial class MainWindow
                 fileToRename.FileName = Path.GetFileName(e.FullPath);
 
                 // Posortuj listę po nazwie pliku w kolejności naturalnej
-                List<PdfFile> sorted = this.PdfFiles.OrderBy(p => p.FileName, new NaturalStringComparer()).ToList();
+                List<PdfFile> sorted = [.. this.PdfFiles.OrderBy(p => p.FileName, new NaturalStringComparer())];
 
                 // Wyczyść i ponownie dodaj posortowane elementy
                 this.PdfFiles.Clear();
@@ -542,6 +573,67 @@ public partial class MainWindow
         if (file != null)
         {
             this.ListBoxFiles.ScrollIntoView(file);
+        }
+    }
+
+    // Funkcja zapewniająca, że okno jest widoczne na ekranie
+    private void EnsureWindowIsOnScreen()
+    {
+        // Pobierz szerokość i wysokość okna
+        double width = this.Width;
+        double height = this.Height;
+
+        // Przekształć współrzędne WPF na współrzędne ekranu
+        int x = (int)this.Left;
+        int y = (int)this.Top;
+
+        // Sprawdź każdy ekran
+        bool isOnScreen = false;
+
+        // Przeszukaj wszystkie ekrany, aby sprawdzić, czy okno jest widoczne na którymkolwiek z nich
+        foreach (Screen screen in Screen.AllScreens)
+        {
+            Rectangle area = screen.WorkingArea;
+
+            if (x + width > area.Left && x < area.Right && y + height > area.Top && y < area.Bottom)
+            {
+                isOnScreen = true;
+
+                break;
+            }
+        }
+
+        // Jeśli okno nie jest widoczne na żadnym ekranie – ustaw domyślnie na środek ekranu głównego
+        if (!isOnScreen)
+        {
+            if (Screen.PrimaryScreen != null) // Sprawdź, czy ekran główny istnieje
+            {
+                Rectangle primary = Screen.PrimaryScreen.WorkingArea;
+
+                // Ustaw okno na środek ekranu głównego
+                this.Left = primary.Left + ((primary.Width - width) / 2);
+                this.Top = primary.Top + ((primary.Height - height) / 2);
+            }
+        }
+    }
+
+    // Obsługa przycisku "Usuń"
+    private void ButtonDelete_Click(object sender, RoutedEventArgs e)
+    {
+        // Sprawdzenie, czy jest zaznaczony plik PDF
+        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        {
+            try
+            {
+                if (File.Exists(selectedPdfFile.FilePath))
+                {
+                    File.Delete(selectedPdfFile.FilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas usuwania pliku:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

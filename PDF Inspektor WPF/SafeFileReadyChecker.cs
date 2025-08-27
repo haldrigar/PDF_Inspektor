@@ -29,6 +29,7 @@ public static class SafeFileReadyChecker
 
         while (stopwatch.Elapsed < timeout)
         {
+            // Sprawdź, czy plik istnieje
             if (!File.Exists(filePath))
             {
                 Thread.Sleep(100);
@@ -41,11 +42,11 @@ public static class SafeFileReadyChecker
                 // Sprawdzenie stabilności rozmiaru pliku
                 long initialSize = new FileInfo(filePath).Length;
 
-                Thread.Sleep(stabilityCheckTimeMs);
+                Thread.Sleep(stabilityCheckTimeMs); // Czekaj określony czas, aby sprawdzić, czy rozmiar pliku się nie zmienia
 
                 long finalSize = new FileInfo(filePath).Length;
 
-                if (initialSize > 0 && initialSize == finalSize)
+                if (initialSize > 0 && initialSize == finalSize) // Plik nie jest pusty i jego rozmiar się nie zmienił
                 {
                     // Spróbuj otworzyć plik do odczytu (bez blokowania)
                     using FileStream stream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

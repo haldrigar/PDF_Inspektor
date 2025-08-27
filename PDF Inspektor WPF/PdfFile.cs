@@ -34,4 +34,9 @@ public class PdfFile(string filePath)
     /// Pobiera lub ustawia datę i godzinę ostatniej modyfikacji pliku.
     /// </summary>
     public DateTime LastWriteTime { get; set; } = new FileInfo(filePath).LastWriteTime;
+
+    /// <summary>
+    /// Pobiera lub ustawia nazwę katalogu, w którym znajduje się plik PDF.
+    /// </summary>
+    public string DirectoryName { get; set; } = Path.GetDirectoryName(filePath) ?? string.Empty;
 }
