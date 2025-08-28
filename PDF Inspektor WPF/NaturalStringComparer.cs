@@ -1,5 +1,5 @@
 ﻿// ====================================================================================================
-// <copyright file="SafeNativeMethods.cs" company="Grzegorz Gogolewski">
+// <copyright file="NaturalStringComparer.cs" company="Grzegorz Gogolewski">
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>

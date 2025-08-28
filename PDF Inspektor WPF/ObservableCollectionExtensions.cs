@@ -27,6 +27,7 @@ public static class ObservableCollectionExtensions
         List<T> sorted = [.. collection.OrderBy(x => x, comparer)];
 
         int ptr = 0;
+
         while (ptr < sorted.Count)
         {
             // Jeśli element jest już na właściwym miejscu, przejdź do następnego.

@@ -491,18 +491,10 @@ public partial class MainWindow
                     this.PdfFiles.Add(newPdf); // Dodaj do ObservableCollection
 
                     // Sortowanie listy w kolejności naturalnej po nazwie pliku
-                    List<PdfFile> sortedPdfFiles = [.. this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer())];
-
-                    // Wyczyść i ponownie dodaj posortowane elementy
-                    this.PdfFiles.Clear();
-
-                    foreach (PdfFile pdf in sortedPdfFiles)
-                    {
-                        this.PdfFiles.Add(pdf);
-                    }
+                    this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
 
                     // Ustawienie zaznaczenia na nowo dodany plik
-                    PdfFile selectedPdfFile = this.PdfFiles.First(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+                    PdfFile? selectedPdfFile = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
 
                     // Funkcja pomocnicza do zaznaczenia pliku i przewinięcia do niego
                     this.SelectPdfFile(selectedPdfFile);
@@ -546,8 +538,10 @@ public partial class MainWindow
                     // Ustaw fokus na zaznaczony element
                     if (this.ListBoxFiles.SelectedItem != null)
                     {
-                        ListBoxItem item = (ListBoxItem)this.ListBoxFiles.ItemContainerGenerator.ContainerFromItem(this.ListBoxFiles.SelectedItem);
-                        item?.Focus();
+                        if (this.ListBoxFiles.ItemContainerGenerator.ContainerFromItem(this.ListBoxFiles.SelectedItem) is ListBoxItem item)
+                        {
+                            item.Focus();
+                        }
                     }
                 }
                 else // Jeśli usuwany plik nie jest zaznaczony, po prostu usuń go z listy
@@ -570,13 +564,20 @@ public partial class MainWindow
         this.Dispatcher.Invoke(() =>
         {
             // Szukamy pliku do zmiany nazwy na podstawie 'e.OldFullPath'
-            PdfFile? fileToRanme = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
+            PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
 
             // Jeśli plik został znaleziony, zaktualizuj jego ścieżkę i nazwę, a mechanizm INotifyPropertyChanged zadba o odświeżenie widoku
-            if (fileToRanme != null)
+            if (fileToRename != null)
             {
-                fileToRanme.FilePath = e.FullPath;
-                fileToRanme.FileName = Path.GetFileName(e.FullPath);
+                fileToRename.FilePath = e.FullPath;
+                fileToRename.FileName = Path.GetFileName(e.FullPath);
+                fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
+
+                // Ponownie posortuj listę
+                this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
+
+                // Zaznacz zaktualizowany plik i przewiń
+                this.SelectPdfFile(fileToRename);
             }
         });
     }
