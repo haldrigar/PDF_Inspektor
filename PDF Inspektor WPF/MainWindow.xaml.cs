@@ -568,32 +568,40 @@ public partial class MainWindow
     {
         this.Dispatcher.Invoke(() =>
         {
-            // Znajdź obiekt PDF odpowiadający starej ścieżce 'e.OldFullPath', przed zmianą nazwy
-            PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
+            // Usuń stary wpis (po starej ścieżce)
+            PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
 
-            // Jeśli plik został znaleziony, zaktualizuj jego ścieżkę i nazwę
-            if (fileToRename != null)
+            if (fileToRemove != null)
             {
-                // Zaktualizuj ścieżkę i nazwę pliku
-                fileToRename.FilePath = e.FullPath;
-                fileToRename.FileName = Path.GetFileName(e.FullPath);
+                this.PdfFiles.Remove(fileToRemove);
+            }
 
-                // Posortuj listę po nazwie pliku w kolejności naturalnej
-                List<PdfFile> sorted = [.. this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer())];
+            // Sprawdź, czy już istnieje wpis z nową nazwą (na wszelki wypadek)
+            if (!this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                // Dodaj nowy wpis z nową nazwą
+                PdfFile newPdfFile = new(e.FullPath);
 
-                // Wyczyść i ponownie dodaj posortowane elementy
-                this.PdfFiles.Clear();
+                this.PdfFiles.Add(newPdfFile);
+            }
 
-                foreach (var p in sorted)
-                {
-                    this.PdfFiles.Add(p);
-                }
+            // Posortuj listę naturalnie po nazwie pliku
+            List<PdfFile> sorted = this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer()).ToList();
 
-                // Ręczna aktualizacja, aby SelectionChanged na pewno się wywołało
-                this.ListBoxFiles.SelectedItem = fileToRename;
+            this.PdfFiles.Clear();
 
-                // Przewiń do zaznaczonego elementu
-                this.ListBoxFiles.ScrollIntoView(fileToRename);
+            foreach (var p in sorted)
+            {
+                this.PdfFiles.Add(p);
+            }
+
+            // Zaznacz nowy plik i przewiń
+            PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+
+            if (fileToSelect != null)
+            {
+                this.ListBoxFiles.SelectedItem = fileToSelect;
+                this.ListBoxFiles.ScrollIntoView(fileToSelect);
             }
         });
     }
