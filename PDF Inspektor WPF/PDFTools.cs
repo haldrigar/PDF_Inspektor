@@ -22,12 +22,12 @@ internal static class PDFTools
     /// </summary>
     /// <param name="pdfLoadedDocument">Dokument PDF.</param>
     /// <returns>Wartość DPI.</returns>
-    public static string GetDPI(PdfLoadedDocument pdfLoadedDocument)
+    public static (int dpiX, int dpiY) GetDPI(PdfLoadedDocument pdfLoadedDocument)
     {
         // Sprawdź, czy dokument zawiera strony
         if (pdfLoadedDocument.Pages.Count <= 0)
         {
-            return "0 x 0";
+            return (0, 0);
         }
 
         PdfLoadedPage page = (PdfLoadedPage)pdfLoadedDocument.Pages[0]; // Pobierz pierwszą stronę dokumentu
@@ -35,7 +35,7 @@ internal static class PDFTools
         // Sprawdź, czy strona zawiera obrazy
         if (page.ImagesInfo.Length <= 0)
         {
-            return "0 x 0";
+            return (0, 0);
         }
 
         PdfImageInfo imgInfo = page.ImagesInfo[0]; // Pobierz informacje o pierwszym obrazie na pierwszej stronie
@@ -62,6 +62,6 @@ internal static class PDFTools
         double dpiX = widthPx / (widthPt / 72.0);
         double dpiY = heightPx / (heightPt / 72.0);
 
-        return $"{dpiX:F0} x {dpiY:F0}";
+        return (Convert.ToInt32(dpiX), Convert.ToInt32(dpiY));
     }
 }

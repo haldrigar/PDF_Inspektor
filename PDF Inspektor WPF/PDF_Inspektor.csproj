@@ -31,32 +31,24 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Syncfusion.PdfViewer.WPF" Version="30.2.6" />
+    <PackageReference Include="Syncfusion.PdfViewer.WPF" Version="30.2.7" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="background.png" />
     <Resource Include="gisnet.ico" />
   </ItemGroup>
-
+  
   <ItemGroup>
     <Content Include="IrfanView\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
+  
   <ItemGroup>
-    <Compile Remove="ImageExtensions.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="ImageExtensions.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="System.Drawing.Common">
-      <HintPath>..\..\..\..\..\..\Program Files\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\8.0.19\ref\net8.0\System.Drawing.Common.dll</HintPath>
-    </Reference>
+    <Content Include="GIMP\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

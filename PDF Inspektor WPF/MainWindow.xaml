@@ -28,31 +28,63 @@
 
         <GroupBox Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Header="Podgląd pliku">
 
-            <pdfViewer:PdfDocumentView x:Name="PdfViewer" 
-                DocumentLoaded="PdfViewer_DocumentLoaded" 
-                CursorMode="HandTool" 
-                IsTextSearchEnabled="False" 
-                IsTextSelectionEnabled="False" 
-                ShowHorizontalScrollBar="False" 
-                ShowScrollbar="False" 
-                ShowVerticalScrollBar="False" 
-                IsManipulationEnabled="False"
+            <pdfViewer:PdfViewerControl 
+                x:Name="PdfViewer" 
                 ZoomMode="FitPage" 
-                Background="White" />
+                ShowScrollbar="False" 
+                EnableNotificationBar="False" 
+                CursorMode="HandTool" 
+                EnableLayers="False" 
+                EnableRedactionTool="False" 
+                IsBookmarkEnabled="False" 
+                IsTextSearchEnabled="False" 
+                ShowHorizontalScrollBar="False" 
+                ShowVerticalScrollBar="False"
+                DocumentLoaded="PdfViewer_DocumentLoaded" IsTextSelectionEnabled="False" MaximumZoomPercentage="800" MinimumZoomPercentage="56">
+                
+                <pdfViewer:PdfViewerControl.ToolbarSettings>
+                    
+                    <pdfViewer:PdfViewerToolbarSettings 
+                        ShowAnnotationTools="False" 
+                        ShowFileTools="False" 
+                        ShowPageNavigationTools="False"/>
+                
+                </pdfViewer:PdfViewerControl.ToolbarSettings>
+                
+            </pdfViewer:PdfViewerControl>
 
         </GroupBox>
 
         <GroupBox Grid.Row="0" Grid.Column="1" Header="Lista plików" >
 
-            <ListBox x:Name="ListBoxFiles"
-                     AllowDrop="True"
-                     ItemsSource="{Binding PdfFiles}"
-                     DisplayMemberPath="FileName"
-                     SelectedItem="{Binding SelectedPdfFile, Mode=TwoWay}"
-                     SelectionChanged="ListBoxFiles_SelectionChanged"
-                     DragOver="ListBoxFiles_DragOver"
-                     Drop="ListBoxFiles_Drop"
-                     KeyDown="ListBoxFiles_KeyDown"/>
+            <Grid>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+
+                <ListBox 
+                    x:Name="ListBoxFiles"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    AllowDrop="True"
+                    ItemsSource="{Binding PdfFiles}"
+                    DisplayMemberPath="FileName"
+                    SelectedItem="{Binding SelectedPdfFile, Mode=TwoWay}"
+                    SelectionChanged="ListBoxFiles_SelectionChanged"
+                    DragOver="ListBoxFiles_DragOver"
+                    Drop="ListBoxFiles_Drop"
+                    KeyDown="ListBoxFiles_KeyDown" />
+
+                <TextBox 
+                    x:Name="TextBoxDirectory" 
+                    Grid.Row="0" 
+                    Grid.Column="0"
+                    IsEnabled="False" FontWeight="Bold" FontSize="16" TextAlignment="Center" Margin="10,10,10,10" Background="#FFF1F9A5"/>
+
+            </Grid>
+            
 
         </GroupBox>
 
@@ -67,7 +99,7 @@
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="ButtonMonitorDirectory" Content="Monitoruj katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click"/>
+                <Button x:Name="ButtonMonitorDirectory" Content="Wybierz katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click" Background="#FFF1F9A5"/>
             </Grid>
         </GroupBox>
 
@@ -83,30 +115,43 @@
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
+                
+                <Button 
+                    x:Name="ButtonEditIrfanView" 
+                    Content="IrfanView"
+                    Grid.Row="0" 
+                    Grid.Column="0" 
+                    ToolTip="Otwórz plik w IrfanView"
+                    Margin="5,5,5,5"
+                    Click="ButtonEditIrfanView_Click" Background="#FFA5B6E0"/>
+                
+                <Button 
+                    x:Name="ButtonRotate" 
+                    Content="Obrót" 
+                    Grid.Row="0" 
+                    Grid.Column="1"
+                    ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
+                    Click="ButtonRotate_OnClick"
+                    Margin="5,5,5,5"
+                    MouseRightButtonDown="ButtonRotate_OnClick" Background="#FFC6ECBE"/>
 
-                <Button x:Name="ButtonRotate" 
-                        Content="Obrót" 
-                        Grid.Column="0"
-                        ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
-                        Click="ButtonRotate_OnClick"
-                        Margin="5,5,5,5"
-                        MouseRightButtonDown="ButtonRotate_OnClick"/>
+                <Button 
+                    x:Name="ButtonDelete" 
+                    Content="Kasuj plik"
+                    Grid.Row="0" 
+                    Grid.Column="2"  
+                    ToolTip="Usuń plik z dysku"
+                    Margin="5,5,5,5"
+                    Click="ButtonDelete_Click" Background="#FFEF9A9A"/>
 
-                <Button x:Name="ButtonEdit" 
-                        Content="Edycja"
-                        Grid.Row="0" 
-                        Grid.Column="1" 
-                        ToolTip="Otwórz plik w IrfanView"
-                        Margin="5,5,5,5"
-                        Click="ButtonEdit_Click"/>
-
-                <Button x:Name="ButtonDelete" 
-                        Content="Kasuj plik"
-                        Grid.Row="0" 
-                        Grid.Column="2"  
-                        ToolTip="Usuń plik z dysku"
-                        Margin="5,5,5,5"
-                        Click="ButtonDelete_Click"/>
+                <Button 
+                    x:Name="ButtonEditGimp" 
+                    Content="GIMP"
+                    Grid.Row="1" 
+                    Grid.Column="0" 
+                    ToolTip="Otwórz plik w IrfanView"
+                    Margin="5,5,5,5"
+                    Click="ButtonEditGimp_Click" Background="#FFA5B6E0"/>
 
             </Grid>
 

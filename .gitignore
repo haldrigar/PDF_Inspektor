@@ -362,3 +362,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /PDF Inspektor WPF/GIMP
+/PDF Inspektor WPF/IrfanView

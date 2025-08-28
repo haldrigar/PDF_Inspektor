@@ -5,6 +5,10 @@
 // </copyright>
 // ====================================================================================================
 
+using System.Windows;
+
+using MessageBox = System.Windows.MessageBox;
+
 namespace PDF_Inspektor;
 
 /// <summary>
@@ -18,5 +22,12 @@ public partial class App
     public App()
     {
         Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1JEaF5cXmRCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWXdcc3RQRmNYWUR2W0NWYEk=");
+
+        this.DispatcherUnhandledException += (_, e) =>
+        {
+            MessageBox.Show("Nieobsłużony błąd:\n" + e.Exception.Message, "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            e.Handled = true;
+        };
     }
 }

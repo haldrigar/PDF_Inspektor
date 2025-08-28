@@ -41,6 +41,13 @@ public partial class MainWindow
     {
         this.InitializeComponent();
 
+        this.PdfViewer.ThumbnailSettings.IsVisible = false; // Hides the thumbnail icon.
+        this.PdfViewer.IsBookmarkEnabled = false; // Hides the bookmark icon.
+        this.PdfViewer.EnableLayers = false; // Hides the layer icon.
+        this.PdfViewer.PageOrganizerSettings.IsIconVisible = false; // Hides the organize page icon.
+        this.PdfViewer.EnableRedactionTool = false; // Hides the redaction icon.
+        this.PdfViewer.FormSettings.IsIconVisible = false; // Hides the form icon.
+
         this.DataContext = this; // Ustawienie kontekstu danych dla bindowania
 
         if (!File.Exists(this._jsonPath))
@@ -67,6 +74,8 @@ public partial class MainWindow
     {
         this.Top = this._appSettings.WindowTop;
         this.Left = this._appSettings.WindowLeft;
+        this.Width = this._appSettings.WindowWidth;
+        this.Height = this._appSettings.WindowHeight;
 
         // Upewnij się, że okno jest widoczne na ekranie
         this.EnsureWindowIsOnScreen();
@@ -77,6 +86,8 @@ public partial class MainWindow
     {
         this._appSettings.WindowTop = this.Top;
         this._appSettings.WindowLeft = this.Left;
+        this._appSettings.WindowWidth = this.Width;
+        this._appSettings.WindowHeight = this.Height;
 
         this.SaveConfig(); // Zapisz ustawienia do pliku JSON
 
@@ -129,6 +140,9 @@ public partial class MainWindow
         {
             return;
         }
+
+        // Wyświetl w TextBox nazwę wybranego folderu, ale bez ścieżki (tylko nazwa katalogu)
+        this.TextBoxDirectory.Text = Path.GetFileName(dialog.FolderName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
         // Załaduj istniejące pliki z wybranego folderu
         this.LoadFiles([dialog.FolderName]);
@@ -184,6 +198,13 @@ public partial class MainWindow
             if (directoriesList.Count == 1)
             {
                 this.SetupFileSystemWatcher(directoriesList.First());
+
+                // Wyświetl w TextBox nazwę wybranego folderu, ale bez ścieżki (tylko nazwa katalogu)
+                this.TextBoxDirectory.Text = Path.GetFileName(directoriesList.First().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            }
+            else
+            {
+                this.TextBoxDirectory.Text = "Pliki z różnych folderów!";
             }
         }
         else // Jeśli lista jest pusta, wyczyść widok PdfViewer
@@ -208,9 +229,6 @@ public partial class MainWindow
             }
             else
             {
-                // Plik nie istnieje, wyświetl komunikat i usuń z listy
-                MessageBox.Show("Usunięto plik z dysku! Usuwam z listy.", "Zmiana pliku na liście", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-
                 // Usuń plik z listy
                 this.PdfFiles.Remove(selectedPdfFile);
             }
@@ -230,17 +248,27 @@ public partial class MainWindow
         // Ustawienie trybu kursora na "Ręka"
         this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
 
-        string dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+        (int dpiX, int dpiY) dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
 
-        this.StatusBarItemMain.Background = dpi != "300 x 300" ? new SolidColorBrush(Colors.Red) : new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
+        this.StatusBarItemMain.Background = Math.Abs(dpi.dpiX - 300) <= 1 && Math.Abs(dpi.dpiY - 300) <= 1
+            ? new SolidColorBrush(Color.FromArgb(0, 255, 255, 255))
+            : new SolidColorBrush(Colors.Red);
 
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
             if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
             {
-                PdfPageRotateAngle rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation; // Pobierz kąt obrotu pierwszej strony
+                // Pobierz obrót pierwszej strony
+                int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
+                {
+                    PdfPageRotateAngle.RotateAngle0 => 0,
+                    PdfPageRotateAngle.RotateAngle90 => 90,
+                    PdfPageRotateAngle.RotateAngle180 => 180,
+                    PdfPageRotateAngle.RotateAngle270 => 270,
+                    _ => throw new NotImplementedException()
+                };
 
-                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpi} | Obrót: {rotation}";
+                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpi.dpiX} x {dpi.dpiY} | Obrót: {rotation}";
             }
             else
             {
@@ -251,6 +279,9 @@ public partial class MainWindow
         {
             this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
         }
+
+        // Zresetuj kursor do domyślnego
+        Mouse.OverrideCursor = null;
     }
 
     // Obsługa przycisków obrotu
@@ -278,7 +309,7 @@ public partial class MainWindow
 
             e.Handled = true;
         }
-        else if (e.Key == Key.Delete)
+        else if (e.Key == Key.Delete) // Obsługa klawisza Delete do usuwania pliku
         {
             // Sprawdzenie, czy jest zaznaczony plik PDF
             if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
@@ -305,6 +336,8 @@ public partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
+            Mouse.OverrideCursor = Cursors.Wait;
+
             PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobranie załadowanego dokumentu PDF
 
             // Sprawdzenie, czy dokument ma co najmniej jedną stronę
@@ -326,7 +359,7 @@ public partial class MainWindow
         }
     }
 
-    private void ButtonEdit_Click(object sender, RoutedEventArgs e)
+    private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
     {
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
@@ -360,23 +393,60 @@ public partial class MainWindow
 
                 process.Exited += (_, _) =>
                 {
-                    this.Dispatcher.Invoke(() =>
-                    {
-                        this.ButtonRotate.IsEnabled = true; // Ponownie włącz przycis obrotu po zamknięciu IrfanView
-                        this.ButtonEdit.IsEnabled = true; // Ponownie włącz przycisk po zamknięciu IrfanView
-                    });
-
                     process.Dispose();
                 };
-
-                this.ButtonRotate.IsEnabled = false; // Wyłącz przyciski obrotu podczas edycji
-                this.ButtonEdit.IsEnabled = false; // Wyłącz przycisk, aby zapobiec wielokrotnemu uruchamianiu
 
                 process.Start();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Nie udało się uruchomić IrfanView.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void ButtonEditGimp_Click(object sender, RoutedEventArgs e)
+    {
+        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        {
+            string filePath = selectedPdfFile.FilePath;
+
+            // Sprawdzenie, czy plik istnieje
+            if (!File.Exists(filePath))
+            {
+                MessageBox.Show($"Plik PDF nie istnieje: {filePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                return;
+            }
+
+            string gimpPath = Path.Combine(AppContext.BaseDirectory, "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
+
+            // Sprawdzenie, czy GIMP istnieje
+            if (!File.Exists(gimpPath))
+            {
+                MessageBox.Show($"Nie znaleziono GIMP: {gimpPath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                return;
+            }
+
+            try
+            {
+                Process process = new()
+                {
+                    StartInfo = new ProcessStartInfo(gimpPath, $"\"{filePath}\"") { UseShellExecute = false },
+                    EnableRaisingEvents = true, // Umożliwia nasłuchiwanie zdarzenia Exited
+                };
+
+                process.Exited += (_, _) =>
+                {
+                    process.Dispose();
+                };
+
+                process.Start();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się uruchomić GIMP.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
@@ -456,16 +526,33 @@ public partial class MainWindow
             // Jeśli plik został znaleziony, usuń go z listy
             if (fileToRemove != null)
             {
-                // Jeśli usunięty plik był zaznaczony, wyczyść zaznaczenie
+                // Jeśli usuwany plik jest aktualnie zaznaczonym plikiem, zaznacz inny plik po usunięciu
                 if (this.SelectedPdfFile == fileToRemove)
                 {
-                    this.SelectedPdfFile = null;
-                    this.ListBoxFiles.SelectedItem = null;
-                    this.PdfViewer.Unload(true);
-                }
+                    int removedIndex = this.ListBoxFiles.SelectedIndex; // Zachowaj indeks zaznaczenia przed usunięciem
 
-                // Usuń plik z listy
-                this.PdfFiles.Remove(fileToRemove);
+                    this.PdfFiles.Remove(fileToRemove); // Usuń plik z listy
+
+                    if (removedIndex == this.PdfFiles.Count) // Jeśli usunięto ostatni element, zaznacz ostatni element na liście
+                    {
+                        this.ListBoxFiles.SelectedIndex = this.PdfFiles.Count - 1;
+                    }
+                    else // W przeciwnym razie zaznacz element o tym samym indeksie
+                    {
+                        this.ListBoxFiles.SelectedIndex = removedIndex;
+                    }
+
+                    // Ustaw fokus na zaznaczony element
+                    if (this.ListBoxFiles.SelectedItem != null)
+                    {
+                        ListBoxItem item = (ListBoxItem)this.ListBoxFiles.ItemContainerGenerator.ContainerFromItem(this.ListBoxFiles.SelectedItem);
+                        item?.Focus();
+                    }
+                }
+                else // Jeśli usuwany plik nie jest zaznaczony, po prostu usuń go z listy
+                {
+                    this.PdfFiles.Remove(fileToRemove);
+                }
 
                 // Jeśli lista jest pusta, wyczyść widok PdfViewer
                 if (this.PdfFiles.Count == 0)
@@ -492,7 +579,7 @@ public partial class MainWindow
                 fileToRename.FileName = Path.GetFileName(e.FullPath);
 
                 // Posortuj listę po nazwie pliku w kolejności naturalnej
-                List<PdfFile> sorted = [.. this.PdfFiles.OrderBy(p => p.FileName, new NaturalStringComparer())];
+                List<PdfFile> sorted = [.. this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer())];
 
                 // Wyczyść i ponownie dodaj posortowane elementy
                 this.PdfFiles.Clear();

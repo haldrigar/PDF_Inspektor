@@ -13,12 +13,22 @@ namespace PDF_Inspektor;
 internal class AppSettings
 {
     /// <summary>
-    /// Pobiera lub ustawia szerokość okna aplikacji.
+    /// Pobiera lub ustawia Top okna aplikacji.
     /// </summary>
     public double WindowTop { get; set; } = 100;
 
     /// <summary>
-    /// Pobiera lub ustawia wysokość okna aplikacji.
+    /// Pobiera lub ustawia Left okna aplikacji.
     /// </summary>
     public double WindowLeft { get; set; } = 100;
+
+    /// <summary>
+    /// Pobiera lub ustawia Height okna aplikacji.
+    /// </summary>
+    public double WindowWidth { get; set; } = 1200;
+
+    /// <summary>
+    /// Pobiera lub ustawia Width okna aplikacji.
+    /// </summary>
+    public double WindowHeight { get; set; } = 600;
 }
