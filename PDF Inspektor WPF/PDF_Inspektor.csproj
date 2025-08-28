@@ -11,6 +11,8 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>True</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <VersionPrefix>1.25.8.28</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,6 +51,15 @@
     <Content Include="GIMP\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Update="Tools\GIMP.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Tools\IrfanView.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

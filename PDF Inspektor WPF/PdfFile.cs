@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 /// Klasa reprezentująca plik PDF.
 /// </summary>
 /// <param name="filePath">Ścieżka do pliku PDF.</param>
-public class PdfFile(string filePath) : INotifyPropertyChanged
+public sealed class PdfFile(string filePath) : INotifyPropertyChanged
 {
     private string _filePath = filePath;
     private string _fileName = Path.GetFileName(filePath);
@@ -77,7 +77,7 @@ public class PdfFile(string filePath) : INotifyPropertyChanged
     /// Metoda wywołująca zdarzenie PropertyChanged.
     /// </summary>
     /// <param name="propertyName">Nazwa zmienionej właściwości.</param>
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
@@ -90,7 +90,8 @@ public class PdfFile(string filePath) : INotifyPropertyChanged
     /// <param name="value">Nowa wartość.</param>
     /// <param name="propertyName">Nazwa właściwości.</param>
     /// <returns>True, jeśli wartość została zmieniona.</returns>
-    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    // ReSharper disable once UnusedMethodReturnValue.Local
+    private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {

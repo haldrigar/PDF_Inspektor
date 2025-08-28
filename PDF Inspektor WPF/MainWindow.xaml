@@ -15,10 +15,10 @@
     <Grid>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="300*"/>
+            <RowDefinition/>
             <RowDefinition Height="100"/>
             <RowDefinition Height="100"/>
-            <RowDefinition Height="20"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
@@ -41,16 +41,16 @@
                 ShowHorizontalScrollBar="False" 
                 ShowVerticalScrollBar="False"
                 DocumentLoaded="PdfViewer_DocumentLoaded" IsTextSelectionEnabled="False" MaximumZoomPercentage="800" MinimumZoomPercentage="56">
-                
+
                 <pdfViewer:PdfViewerControl.ToolbarSettings>
-                    
+
                     <pdfViewer:PdfViewerToolbarSettings 
                         ShowAnnotationTools="False" 
                         ShowFileTools="False" 
                         ShowPageNavigationTools="False"/>
-                
+
                 </pdfViewer:PdfViewerControl.ToolbarSettings>
-                
+
             </pdfViewer:PdfViewerControl>
 
         </GroupBox>
@@ -84,7 +84,7 @@
                     IsEnabled="False" FontWeight="Bold" FontSize="16" TextAlignment="Center" Margin="10,10,10,10" Background="#FFF1F9A5"/>
 
             </Grid>
-            
+
 
         </GroupBox>
 
@@ -115,7 +115,7 @@
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                
+
                 <Button 
                     x:Name="ButtonEditIrfanView" 
                     Content="IrfanView"
@@ -124,7 +124,7 @@
                     ToolTip="Otwórz plik w IrfanView"
                     Margin="5,5,5,5"
                     Click="ButtonEditIrfanView_Click" Background="#FFA5B6E0"/>
-                
+
                 <Button 
                     x:Name="ButtonRotate" 
                     Content="Obrót" 
@@ -158,17 +158,22 @@
         </GroupBox>
 
 
-        <StatusBar Grid.Row="3" 
-                   Grid.Column="0" 
-                   Grid.ColumnSpan="2" >
+        <StatusBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
 
+            <!-- Ten element będzie po prawej stronie i będzie miał stałą szerokość -->
+            <StatusBarItem 
+                x:Name="StatusBarItemInfo"
+                DockPanel.Dock="Right" 
+                Width="400"
+                Content="Info" 
+                HorizontalContentAlignment="Center" 
+                Margin="5,0,5,0"/>
+
+            <!-- Ten element wypełni pozostałą przestrzeń -->
             <StatusBarItem 
                 x:Name="StatusBarItemMain"
-                Content="Gotowy!" />
-
-            <StatusBarItem 
-                x:Name="StatusBarItemInfo" 
-                Content="Gotowy!" />
+                Content="Gotowy!" 
+                Margin="5,0,5,0"/>  
 
         </StatusBar>
 

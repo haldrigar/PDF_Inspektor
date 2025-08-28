@@ -10,8 +10,8 @@ namespace PDF_Inspektor;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -79,6 +79,42 @@ public partial class MainWindow
 
         // Upewnij się, że okno jest widoczne na ekranie
         this.EnsureWindowIsOnScreen();
+
+        // ========================================= Sprawdź i rozpakuj IrfanView, jeśli nie istnieje =========================================
+        string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe"); // Ścieżka do IrfanView
+
+        string irfanZipPath = Path.Combine(AppContext.BaseDirectory, "Tools", "irfanview.zip");
+
+        string irfanExtractPath = Path.Combine(AppContext.BaseDirectory, "Tools");
+
+        if (!File.Exists(irfanViewPath))
+        {
+            MessageBox.Show("Brak aplikacji IrfanView. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", "Brak Irfan View", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            ZipFile.ExtractToDirectory(irfanZipPath, irfanExtractPath);
+
+            File.Delete(irfanZipPath);
+
+            MessageBox.Show("Rozpakowywanie zakończone.", "Irfan View", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // ========================================= Sprawdź i rozpakuj GIMP, jeśli nie istnieje =========================================
+        string gimpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
+
+        string gimpZipPath = Path.Combine(AppContext.BaseDirectory, "Tools", "gimp.zip");
+
+        string gimpExtractPath = Path.Combine(AppContext.BaseDirectory, "Tools");
+
+        if (!File.Exists(gimpPath))
+        {
+            MessageBox.Show("Brak aplikacji GIMP. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", "Brak GIMP", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            ZipFile.ExtractToDirectory(gimpZipPath, gimpExtractPath);
+
+            File.Delete(gimpZipPath);
+
+            MessageBox.Show("Rozpakowywanie zakończone.", "GIMP", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -373,7 +409,7 @@ public partial class MainWindow
                 return;
             }
 
-            string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "IrfanView", "IrfanViewPortable.exe"); // Ścieżka do IrfanView
+            string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe"); // Ścieżka do IrfanView
 
             // Sprawdzenie, czy IrfanView istnieje
             if (!File.Exists(irfanViewPath))
@@ -419,7 +455,7 @@ public partial class MainWindow
                 return;
             }
 
-            string gimpPath = Path.Combine(AppContext.BaseDirectory, "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
+            string gimpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
 
             // Sprawdzenie, czy GIMP istnieje
             if (!File.Exists(gimpPath))
@@ -463,6 +499,7 @@ public partial class MainWindow
             Filter = "*.pdf",
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
+            InternalBufferSize = 65536,
         };
 
         this._fileWatcher.Created += this.FileWatcher_Created; // Obsługa zdarzenia utworzenia pliku
@@ -472,39 +509,29 @@ public partial class MainWindow
     }
 
     // Obsługa zdarzenia utworzenia pliku
-    private async void FileWatcher_Created(object sender, FileSystemEventArgs e)
+    private void FileWatcher_Created(object sender, FileSystemEventArgs e)
     {
-        // Oczekiwanie na gotowość pliku
-        bool isReady = await Task.Run(() => SafeFileReadyChecker.IsFileReady(e.FullPath, TimeSpan.FromSeconds(30)));
-
-        if (isReady)
+        this.Dispatcher.Invoke(() =>
         {
-            Debug.WriteLine($"Plik {e.Name} jest gotowy. Dodaję do listy.");
-
-            await this.Dispatcher.InvokeAsync(() =>
+            // Sprawdzenie, czy plik już istnieje na liście (ignorując wielkość liter). Jeżeli istnieje to nie dodawaj ponownie. (zapobiega podwójnemu dodaniu przy szybkim kopiowaniu wielu plików)
+            if (!this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
             {
-                // Sprawdzenie, czy plik już istnieje na liście (ignorując wielkość liter). Jeżeli istnieje to nie dodawaj ponownie. (zapobiega podwójnemu dodaniu przy szybkim kopiowaniu wielu plików)
-                if (!this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
-                {
-                    PdfFile newPdf = new(e.FullPath); // Utwórz nowy obiekt PdfFile
+                Debug.WriteLine($"FileWatcher_Created => Znaleziono nowy plik: {e.FullPath}!");
 
-                    this.PdfFiles.Add(newPdf); // Dodaj do ObservableCollection
+                PdfFile newPdf = new(e.FullPath); // Utwórz nowy obiekt PdfFile
 
-                    // Sortowanie listy w kolejności naturalnej po nazwie pliku
-                    this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
+                this.PdfFiles.Add(newPdf); // Dodaj do ObservableCollection
 
-                    // Ustawienie zaznaczenia na nowo dodany plik
-                    PdfFile? selectedPdfFile = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+                // Sortowanie listy w kolejności naturalnej po nazwie pliku
+                this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
 
-                    // Funkcja pomocnicza do zaznaczenia pliku i przewinięcia do niego
-                    this.SelectPdfFile(selectedPdfFile);
-                }
-            });
-        }
-        else
-        {
-            Debug.WriteLine($"Timeout: Plik {e.Name} nie ustabilizował się na czas.");
-        }
+                // Ustawienie zaznaczenia na nowo dodany plik
+                PdfFile? selectedPdfFile = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+
+                // Funkcja pomocnicza do zaznaczenia pliku i przewinięcia do niego
+                this.SelectPdfFile(selectedPdfFile);
+            }
+        });
     }
 
     // Obsługa zdarzenia usunięcia pliku
@@ -518,6 +545,8 @@ public partial class MainWindow
             // Jeśli plik został znaleziony, usuń go z listy
             if (fileToRemove != null)
             {
+                Debug.WriteLine($"FileWatcher_Deleted => Znaleziono skasowany plik: {e.FullPath}!");
+
                 // Jeśli usuwany plik jest aktualnie zaznaczonym plikiem, zaznacz inny plik po usunięciu
                 if (this.SelectedPdfFile == fileToRemove)
                 {
@@ -569,6 +598,8 @@ public partial class MainWindow
             // Jeśli plik został znaleziony, zaktualizuj jego ścieżkę i nazwę, a mechanizm INotifyPropertyChanged zadba o odświeżenie widoku
             if (fileToRename != null)
             {
+                Debug.WriteLine($"FileWatcher_Renamed => Znaleziono zmodyfikowany plik: {e.FullPath}!");
+
                 fileToRename.FilePath = e.FullPath;
                 fileToRename.FileName = Path.GetFileName(e.FullPath);
                 fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
@@ -576,21 +607,16 @@ public partial class MainWindow
                 // Ponownie posortuj listę
                 this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
 
-                // Zaznacz zaktualizowany plik i przewiń
+                // Zaznacz zaktualizowany plik i przewiń do niego
                 this.SelectPdfFile(fileToRename);
             }
         });
     }
 
     // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
-    private async void FileWatcher_Changed(object sender, FileSystemEventArgs e)
+    private void FileWatcher_Changed(object sender, FileSystemEventArgs e)
     {
-        // Oczekiwanie na gotowość pliku
-        bool isReady = await Task.Run(() => SafeFileReadyChecker.IsFileReady(e.FullPath, TimeSpan.FromSeconds(30)));
-
-        if (isReady)
-        {
-            await this.Dispatcher.InvokeAsync(() =>
+            this.Dispatcher.Invoke(() =>
             {
                 DateTime lastWriteTime = new FileInfo(e.FullPath).LastWriteTime; // Pobierz czas ostatniej modyfikacji pliku
                 long fileSize = new FileInfo(e.FullPath).Length; // Pobierz rozmiar pliku
@@ -601,7 +627,7 @@ public partial class MainWindow
                 // Jeśli plik został znaleziony, zaktualizuj jego rozmiar i datę modyfikacji
                 if (fileToUpdate != null)
                 {
-                    Debug.WriteLine("Znaleziono zmodyfikowany plik. Aktualizacja!");
+                    Debug.WriteLine($"FileWatcher_Changed => Znaleziono zmodyfikowany plik: {e.FullPath}!");
 
                     fileToUpdate.FileSize = fileSize;
                     fileToUpdate.LastWriteTime = lastWriteTime;
@@ -612,17 +638,8 @@ public partial class MainWindow
                         // Ponowne załadowanie pliku PDF, aby odświeżyć widok
                         this.PdfViewer.Load(fileToUpdate.FilePath);
                     }
-                    else // jeżeli nie jest zaznaczony, to wybierzgo w liście i przewiń do niego, a program sam wczyta go do PdfViewer
-                    {
-                        this.SelectPdfFile(fileToUpdate);
-                    }
                 }
             });
-        }
-        else
-        {
-            Debug.WriteLine($"Timeout: Plik {e.Name} nie ustabilizował się na czas.");
-        }
     }
 
     // Obsługa zmiany rozmiaru okna
