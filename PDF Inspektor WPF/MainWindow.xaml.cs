@@ -533,7 +533,8 @@ public partial class MainWindow
 
                     this.PdfFiles.Remove(fileToRemove); // Usuń plik z listy
 
-                    if (removedIndex == this.PdfFiles.Count) // Jeśli usunięto ostatni element, zaznacz ostatni element na liście
+                    // Jeśli usunięto ostatni element, zaznacz ostatni element na liście
+                    if (removedIndex == this.PdfFiles.Count)
                     {
                         this.ListBoxFiles.SelectedIndex = this.PdfFiles.Count - 1;
                     }
@@ -568,45 +569,19 @@ public partial class MainWindow
     {
         this.Dispatcher.Invoke(() =>
         {
-            // Usuń stary wpis (po starej ścieżce)
-            PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
+            // Szukamy pliku do zmiany nazwy na podstawie 'e.OldFullPath'
+            PdfFile? fileToRanme = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
 
-            if (fileToRemove != null)
+            // Jeśli plik został znaleziony, zaktualizuj jego ścieżkę i nazwę, a mechanizm INotifyPropertyChanged zadba o odświeżenie widoku
+            if (fileToRanme != null)
             {
-                this.PdfFiles.Remove(fileToRemove);
-            }
-
-            // Sprawdź, czy już istnieje wpis z nową nazwą (na wszelki wypadek)
-            if (!this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
-            {
-                // Dodaj nowy wpis z nową nazwą
-                PdfFile newPdfFile = new(e.FullPath);
-
-                this.PdfFiles.Add(newPdfFile);
-            }
-
-            // Posortuj listę naturalnie po nazwie pliku
-            List<PdfFile> sorted = this.PdfFiles.OrderBy(p => p.FilePath, new NaturalStringComparer()).ToList();
-
-            this.PdfFiles.Clear();
-
-            foreach (var p in sorted)
-            {
-                this.PdfFiles.Add(p);
-            }
-
-            // Zaznacz nowy plik i przewiń
-            PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
-
-            if (fileToSelect != null)
-            {
-                this.ListBoxFiles.SelectedItem = fileToSelect;
-                this.ListBoxFiles.ScrollIntoView(fileToSelect);
+                fileToRanme.FilePath = e.FullPath;
+                fileToRanme.FileName = Path.GetFileName(e.FullPath);
             }
         });
     }
 
-    // Obsługa zdarzenia zmiany pliku
+    // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
     private async void FileWatcher_Changed(object sender, FileSystemEventArgs e)
     {
         // Oczekiwanie na gotowość pliku
@@ -630,14 +605,16 @@ public partial class MainWindow
                     fileToUpdate.FileSize = fileSize;
                     fileToUpdate.LastWriteTime = lastWriteTime;
 
-                    // Ponowne załadowanie pliku PDF, aby odświeżyć widok
-                    this.PdfViewer.Load(fileToUpdate.FilePath);
-
-                    // Ręczna aktualizacja, aby SelectionChanged na pewno się wywołało
-                    this.ListBoxFiles.SelectedItem = fileToUpdate;
-
-                    // Przewiń do zaznaczonego elementu
-                    this.ListBoxFiles.ScrollIntoView(fileToUpdate);
+                    // jeżeli zakualizowany plik jest aktualnie zaznaczonym plikiem, ponownie załaduj go do PdfViewer
+                    if (this.SelectedPdfFile == fileToUpdate)
+                    {
+                        // Ponowne załadowanie pliku PDF, aby odświeżyć widok
+                        this.PdfViewer.Load(fileToUpdate.FilePath);
+                    }
+                    else // jeżeli nie jest zaznaczony, to wybierzgo w liście i przewiń do niego, a program sam wczyta go do PdfViewer
+                    {
+                        this.SelectPdfFile(fileToUpdate);
+                    }
                 }
             });
         }

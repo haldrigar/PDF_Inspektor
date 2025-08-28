@@ -162,8 +162,13 @@
                    Grid.Column="0" 
                    Grid.ColumnSpan="2" >
 
-            <StatusBarItem x:Name="StatusBarItemMain" 
-                           Content="Gotowy!" />
+            <StatusBarItem 
+                x:Name="StatusBarItemMain"
+                Content="Gotowy!" />
+
+            <StatusBarItem 
+                x:Name="StatusBarItemInfo" 
+                Content="Gotowy!" />
 
         </StatusBar>
 
