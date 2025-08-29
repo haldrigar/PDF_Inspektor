@@ -286,9 +286,14 @@ public partial class MainWindow
 
         (int dpiX, int dpiY) dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
 
-        this.StatusBarItemMain.Background = Math.Abs(dpi.dpiX - 300) <= 1 && Math.Abs(dpi.dpiY - 300) <= 1
-            ? new SolidColorBrush(Color.FromArgb(0, 255, 255, 255))
-            : new SolidColorBrush(Colors.Red);
+        if (Math.Abs(dpi.dpiX - 300) <= 1 && Math.Abs(dpi.dpiY - 300) <= 1)
+        {
+            this.StatusBarItemMain.Background = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
+        }
+        else
+        {
+            this.StatusBarItemMain.Background = new SolidColorBrush(Colors.Red);
+        }
 
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
