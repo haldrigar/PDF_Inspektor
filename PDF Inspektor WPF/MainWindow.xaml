@@ -166,7 +166,8 @@
                 DockPanel.Dock="Right" 
                 Width="400"
                 Content="Info" 
-                HorizontalContentAlignment="Center"/>
+                HorizontalContentAlignment="Center" 
+                Margin="5,0,5,0"/>
 
             <!-- Ten element wypełni pozostałą przestrzeń -->
             <StatusBarItem 
