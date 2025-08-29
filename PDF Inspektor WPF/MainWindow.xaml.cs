@@ -35,6 +35,8 @@ public partial class MainWindow
     // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
     private readonly NaturalStringComparer _naturalComparer = new();
 
+    private MemoryStream? _pdfStream;
+
     private FileSystemWatcher _fileWatcher = new();
 
     /// <summary>
@@ -172,6 +174,7 @@ public partial class MainWindow
 
         this.SaveConfig(); // Zapisz ustawienia do pliku JSON
 
+        this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
         this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
     }
 
@@ -298,21 +301,52 @@ public partial class MainWindow
     private void ListBoxFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // Sprawdzamy, czy zaznaczony element jest typu PdfFile
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
-            // Aktualizujemy właściwość SelectedPdfFile, co jest dobrą praktyką
-            this.SelectedPdfFile = selectedPdfFile;
+            // Jeśli nic nie jest zaznaczone (np. po usunięciu ostatniego elementu), wyczyść podgląd.
+            this._pdfStream?.Dispose();
+            this.PdfViewer.Unload();
+            return;
+        }
 
-            if (File.Exists(selectedPdfFile.FilePath))
-            {
-                // Załaduj zaznaczony plik PDF do kontrolki PdfViewer
-                this.PdfViewer.Load(selectedPdfFile.FilePath);
-            }
-            else
-            {
-                // Usuń plik z listy
-                this.PdfFiles.Remove(selectedPdfFile);
-            }
+        // Aktualizujemy właściwość SelectedPdfFile
+        this.SelectedPdfFile = selectedPdfFile;
+
+        if (!File.Exists(selectedPdfFile.FilePath))
+        {
+            // Plik nie istnieje na dysku, usuń go z listy i zakończ.
+            this.PdfFiles.Remove(selectedPdfFile);
+            return;
+        }
+
+        try
+        {
+            // ======================== KLUCZOWA ZMIANA LOGIKI ========================
+
+            // 1. Zamknij i zwolnij poprzedni strumień w pamięci, jeśli istnieje.
+            this._pdfStream?.Dispose();
+
+            // 2. Otwórz plik na dysku tylko na chwilę, aby skopiować jego zawartość.
+            byte[] fileBytes = File.ReadAllBytes(selectedPdfFile.FilePath);
+
+            // 3. Utwórz nowy strumień w pamięci na podstawie wczytanych bajtów.
+            this._pdfStream = new MemoryStream(fileBytes);
+
+            // 4. Załaduj dokument do PdfViewer ze strumienia w pamięci.
+            //    Plik na dysku jest już wolny!
+            this.PdfViewer.Load(this._pdfStream);
+
+            // =========================================================================
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Błąd podczas ładowania pliku do pamięci: {ex.Message}");
+
+            MessageBox.Show($"Nie udało się załadować pliku: {selectedPdfFile.FileName}\n\n{ex.Message}", "Błąd ładowania", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            // W razie błędu wyczyść podgląd
+            this._pdfStream?.Dispose();
+            this.PdfViewer.Unload();
         }
     }
 
@@ -622,63 +656,67 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa zdarzenia usunięcia pliku - WERSJA ASYNCHRONICZNA
+    // Obsługa zdarzenia usunięcia pliku - WERSJA ASYNCHRONICZNA I BEZPIECZNA
     private async void FileWatcher_Deleted(object sender, FileSystemEventArgs e)
     {
         try
         {
-            // Przełączamy się na wątek UI, aby bezpiecznie modyfikować kolekcję i kontrolki.
             await this.Dispatcher.InvokeAsync(() =>
             {
-                // Szukamy pliku do usunięcia na podstawie 'e.FullPath'.
+                // Szukamy pliku do usunięcia na podstawie ścieżki.
                 PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
 
-                // Jeśli plik został znaleziony, usuń go z listy.
-                if (fileToRemove != null)
+                // Jeśli plik nie został znaleziony na naszej liście, nic nie rób.
+                if (fileToRemove == null)
                 {
-                    Debug.WriteLine($"FileWatcher_Deleted => Znaleziono skasowany plik: {e.FullPath}!");
+                    return;
+                }
 
-                    int removedIndex = -1;
+                Debug.WriteLine($"FileWatcher_Deleted => Wykryto usunięcie pliku: {e.FullPath}!");
 
-                    bool wasSelected = this.SelectedPdfFile == fileToRemove;
+                int removedIndex = this.PdfFiles.IndexOf(fileToRemove);
 
-                    if (wasSelected)
+                bool wasSelected = this.SelectedPdfFile == fileToRemove;
+
+                // Jeśli usuwany plik jest aktualnie załadowany w podglądzie,
+                // MUSIMY zwolnić zasoby PRZED jakąkolwiek inną operacją.
+                if (wasSelected)
+                {
+                    this.PdfViewer.Unload(true); // Zwalnia blokadę pliku i czyści stan kontrolki.
+                }
+
+                // Teraz bezpiecznie usuń plik z kolekcji.
+                this.PdfFiles.Remove(fileToRemove);
+
+                // Sprawdź, czy lista jest teraz pusta.
+                if (this.PdfFiles.Count == 0)
+                {
+                    this.StatusBarItemMain.Content = "Gotowy!";
+                    this.StatusBarItemInfo.Content = "Wszystkie pliki zostały usunięte.";
+                    return; // Zakończ, nie ma czego zaznaczać.
+                }
+
+                // Jeśli usunięto aktualnie zaznaczony plik, zaznacz inny element, aby uniknąć "pustego" widoku.
+                if (wasSelected)
+                {
+                    // Ustal nowy indeks. Jeśli usunięto ostatni element, zaznacz nowy ostatni.
+                    int newIndex = removedIndex >= this.PdfFiles.Count ? this.PdfFiles.Count - 1 : removedIndex;
+
+                    // Zaznacz nowy element na liście. To wywoła zdarzenie SelectionChanged,
+                    // które teraz bezpiecznie załaduje nowy plik, bo PdfViewer jest gotowy.
+                    this.ListBoxFiles.SelectedIndex = newIndex;
+
+                    // Dodatkowo ustaw fokus i przewiń do nowego elementu.
+                    if (this.ListBoxFiles.SelectedItem is PdfFile newSelectedItem)
                     {
-                        removedIndex = this.ListBoxFiles.SelectedIndex; // Zachowaj indeks przed usunięciem.
-                    }
-
-                    this.PdfFiles.Remove(fileToRemove); // Usuń plik z listy.
-
-                    // Jeśli usuwany plik był aktualnie zaznaczony, zaznacz inny plik.
-                    if (wasSelected)
-                    {
-                        // Jeśli lista nie jest pusta, ustaw nowy fokus.
-                        if (this.PdfFiles.Count > 0)
-                        {
-                            // Jeśli usunięto ostatni element, zaznacz nowy ostatni. W przeciwnym razie zaznacz element o tym samym indeksie.
-                            int newIndex = removedIndex >= this.PdfFiles.Count ? this.PdfFiles.Count - 1 : removedIndex;
-
-                            this.ListBoxFiles.SelectedIndex = newIndex;
-
-                            // Ustaw fokus na nowo zaznaczony element.
-                            if (this.ListBoxFiles.SelectedItem is not null && this.ListBoxFiles.ItemContainerGenerator.ContainerFromItem(this.ListBoxFiles.SelectedItem) is ListBoxItem item)
-                            {
-                                item.Focus();
-                            }
-                        }
-                    }
-
-                    // Jeśli lista jest teraz pusta, wyczyść widok PdfViewer.
-                    if (this.PdfFiles.Count > 0)
-                    {
-                        this.PdfViewer.Unload(true);
+                        this.FocusAndScrollToListBoxItem(newSelectedItem);
                     }
                 }
             });
         }
         catch (Exception ex)
         {
-            // Logowanie nieoczekiwanych błędów.
+            // Logowanie nieoczekiwanych błędów, które mogą się zdarzyć pomimo zabezpieczeń.
             Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Deleted: {ex.Message}");
         }
     }
