@@ -127,40 +127,44 @@ public partial class MainWindow
         // Upewnij się, że okno jest widoczne na ekranie
         this.EnsureWindowIsOnScreen();
 
-        // ========================================= Sprawdź i rozpakuj IrfanView, jeśli nie istnieje =========================================
-        string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe"); // Ścieżka do IrfanView
+        // Sprawdź i rozpakuj narzędzia
+        this.EnsureAndUnpackTool("IrfanView", "irfanview.zip", "IrfanViewPortable.exe");
+        this.EnsureAndUnpackTool("GIMP", "gimp.zip", "GIMPPortable.exe");
+    }
 
-        string irfanZipPath = Path.Combine(AppContext.BaseDirectory, "Tools", "irfanview.zip");
+    /// <summary>
+    /// Sprawdza istnienie narzędzia i rozpakowuje je z archiwum ZIP, jeśli jest to konieczne.
+    /// </summary>
+    private void EnsureAndUnpackTool(string toolName, string zipFileName, string exeFileName)
+    {
+        string toolsDirectory = Path.Combine(AppContext.BaseDirectory, "Tools");
+        string executablePath = Path.Combine(toolsDirectory, toolName, exeFileName);
+        string zipPath = Path.Combine(toolsDirectory, zipFileName);
 
-        string irfanExtractPath = Path.Combine(AppContext.BaseDirectory, "Tools");
-
-        if (!File.Exists(irfanViewPath))
+        if (File.Exists(executablePath))
         {
-            MessageBox.Show("Brak aplikacji IrfanView. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", "Brak Irfan View", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            ZipFile.ExtractToDirectory(irfanZipPath, irfanExtractPath);
-
-            File.Delete(irfanZipPath);
-
-            MessageBox.Show("Rozpakowywanie zakończone.", "Irfan View", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
         }
 
-        // ========================================= Sprawdź i rozpakuj GIMP, jeśli nie istnieje =========================================
-        string gimpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
-
-        string gimpZipPath = Path.Combine(AppContext.BaseDirectory, "Tools", "gimp.zip");
-
-        string gimpExtractPath = Path.Combine(AppContext.BaseDirectory, "Tools");
-
-        if (!File.Exists(gimpPath))
+        if (!File.Exists(zipPath)) // Sprawdź, czy archiwum ZIP istnieje
         {
-            MessageBox.Show("Brak aplikacji GIMP. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", "Brak GIMP", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Nie znaleziono ani aplikacji {toolName}, ani archiwum {zipFileName}.", $"Brak {toolName}", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
 
-            ZipFile.ExtractToDirectory(gimpZipPath, gimpExtractPath);
+        try
+        {
+            MessageBox.Show($"Brak aplikacji {toolName}. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", $"Instalacja {toolName}", MessageBoxButton.OK, MessageBoxImage.Information);
 
-            File.Delete(gimpZipPath);
+            ZipFile.ExtractToDirectory(zipPath, toolsDirectory, true);
 
-            MessageBox.Show("Rozpakowywanie zakończone.", "GIMP", MessageBoxButton.OK, MessageBoxImage.Information);
+            File.Delete(zipPath); // Opcjonalnie usuń archiwum po rozpakowaniu
+
+            MessageBox.Show($"Rozpakowywanie {toolName} zakończone.", toolName, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {toolName}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -732,23 +736,35 @@ public partial class MainWindow
                 // Szukamy pliku do zmiany nazwy na podstawie 'e.OldFullPath'.
                 PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
 
-                // Jeśli plik został znaleziony, zaktualizuj jego ścieżkę i nazwę.
-                // Mechanizm INotifyPropertyChanged zadba o odświeżenie widoku.
-                if (fileToRename != null)
+                // Jeśli plik nie został znaleziony, zakończ.
+                if (fileToRename == null)
                 {
-                    Debug.WriteLine($"FileWatcher_Renamed => Znaleziono plik o zmienionej nazwie: {e.FullPath}!");
-
-                    // Aktualizacja właściwości obiektu.
-                    fileToRename.FilePath = e.FullPath;
-                    fileToRename.FileName = Path.GetFileName(e.FullPath);
-                    fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
-
-                    // Ponownie posortuj listę, ponieważ nazwa pliku (klucz sortowania) się zmieniła.
-                    this.PdfFiles.Sort(Comparer<PdfFile>.Create((p1, p2) => new NaturalStringComparer().Compare(p1.FilePath, p2.FilePath)));
-
-                    // Ustawienie zaznaczenia na plik o zmienionej nazwie.
-                    this.FocusAndScrollToListBoxItem(fileToRename);
+                    return;
                 }
+
+                Debug.WriteLine($"FileWatcher_Renamed => Zmieniono nazwę pliku na: {e.FullPath}!");
+
+                // Krok 1: Usuń element z kolekcji.
+                this.PdfFiles.Remove(fileToRename);
+
+                // Krok 2: Zaktualizuj właściwości obiektu nowymi danymi.
+                fileToRename.FilePath = e.FullPath;
+                fileToRename.FileName = Path.GetFileName(e.FullPath);
+                fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
+
+                // Krok 3: Znajdź nowy, poprawny indeks dla elementu (ta sama logika co w FileWatcher_Created).
+                int newIndex = 0;
+
+                while (newIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[newIndex].FilePath, fileToRename.FilePath) < 0)
+                {
+                    newIndex++;
+                }
+
+                // Krok 4: Wstaw zaktualizowany obiekt na właściwe miejsce.
+                this.PdfFiles.Insert(newIndex, fileToRename);
+
+                // Krok 5: Ustaw fokus na przeniesionym elemencie.
+                this.FocusAndScrollToListBoxItem(fileToRename);
             });
         }
         catch (Exception ex)

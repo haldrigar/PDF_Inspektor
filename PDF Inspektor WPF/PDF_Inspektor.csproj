@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>gisnet.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\gisnet.ico</ApplicationIcon>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>True</UseWindowsForms>
@@ -16,7 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="background.png" />
     <None Remove="gisnet.ico" />
   </ItemGroup>
 
@@ -25,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="gisnet.ico" />
+    <Content Include="Resources\gisnet.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,8 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="background.png" />
-    <Resource Include="gisnet.ico" />
+    <Resource Include="Resources\gisnet.ico" />
   </ItemGroup>
   
   <ItemGroup>
@@ -51,6 +49,21 @@
     <Content Include="GIMP\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   
   <ItemGroup>
