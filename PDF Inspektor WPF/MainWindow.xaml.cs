@@ -368,37 +368,88 @@ public partial class MainWindow
         e.Handled = true; // Zaznacz zdarzenie jako obsłużone
     }
 
-    // Obsługa klawiszy strzałek do obrotu
+    // Obsługa klawiszy na liście plików
     private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Right)
         {
             this.RotateAndSave(true);
-
             e.Handled = true;
         }
         else if (e.Key == Key.Left)
         {
             this.RotateAndSave(false);
-
             e.Handled = true;
         }
         else if (e.Key == Key.Delete) // Obsługa klawisza Delete do usuwania pliku
         {
-            // Sprawdzenie, czy jest zaznaczony plik PDF
-            if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+            List<PdfFile> itemsToDelete = this.ListBoxFiles.SelectedItems.Cast<PdfFile>().ToList();
+
+            if (itemsToDelete.Count == 0)
             {
-                try
+                return; // Nic nie jest zaznaczone, więc nic nie usuwamy
+            }
+
+            if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                foreach (PdfFile item in itemsToDelete)
                 {
-                    if (File.Exists(selectedPdfFile.FilePath))
+                    try
                     {
-                        File.Delete(selectedPdfFile.FilePath);
+                        if (File.Exists(item.FilePath))
+                        {
+                            File.Delete(item.FilePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
-                catch (Exception ex)
+            }
+
+            e.Handled = true;
+        }
+        else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) // Kopiowanie plików (Ctrl+C)
+        {
+            if (this.ListBoxFiles.SelectedItems.Count > 0)
+            {
+                var filePaths = new System.Collections.Specialized.StringCollection();
+                foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
                 {
-                    MessageBox.Show($"Błąd podczas usuwania pliku:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    filePaths.Add(selectedFile.FilePath);
                 }
+
+                Clipboard.SetFileDropList(filePaths);
+
+                this.StatusBarItemInfo.Content = $"Skopiowano {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")} do schowka.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
+            }
+
+            e.Handled = true;
+        }
+        else if (e.Key == Key.X && Keyboard.Modifiers == ModifierKeys.Control) // Wycinanie plików (Ctrl+X)
+        {
+            if (this.ListBoxFiles.SelectedItems.Count > 0)
+            {
+                var filePaths = new System.Collections.Specialized.StringCollection();
+                foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
+                {
+                    filePaths.Add(selectedFile.FilePath);
+                }
+
+                DataObject data = new();
+                data.SetFileDropList(filePaths);
+
+                // Wartość 2 oznacza "przenieś" (Move/Cut). Poprzednia wartość (5) była nieprawidłowa.
+                MemoryStream dropEffect = new([2, 0, 0, 0]);
+
+                data.SetData("Preferred DropEffect", dropEffect);
+
+                Clipboard.SetDataObject(data, true);
+
+                this.StatusBarItemInfo.Content = $"Wycięto {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")}. Wklej je w nowej lokalizacji.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
             }
 
             e.Handled = true;
@@ -694,19 +745,28 @@ public partial class MainWindow
     // Obsługa przycisku "Usuń"
     private void ButtonDelete_Click(object sender, RoutedEventArgs e)
     {
-        // Sprawdzenie, czy jest zaznaczony plik PDF
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        List<PdfFile> itemsToDelete = this.ListBoxFiles.SelectedItems.Cast<PdfFile>().ToList();
+
+        if (itemsToDelete.Count == 0)
         {
-            try
+            return;
+        }
+
+        if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        {
+            foreach (PdfFile item in itemsToDelete)
             {
-                if (File.Exists(selectedPdfFile.FilePath))
+                try
                 {
-                    File.Delete(selectedPdfFile.FilePath);
+                    if (File.Exists(item.FilePath))
+                    {
+                        File.Delete(item.FilePath);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas usuwania pliku:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
     }
