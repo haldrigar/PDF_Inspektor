@@ -53,11 +53,12 @@ internal static class Tools
     /// <summary>
     /// Sprawdza istnienie narzędzia i rozpakowuje je z archiwum ZIP, jeśli jest to konieczne.
     /// </summary>
-    public static void EnsureAndUnpackTool(string toolName, string zipFileName, string exeFileName)
+    /// <param name="tool">Obiekt konfiguracyjny narzędzia zewnętrznego.</param>
+    public static void EnsureAndUnpackTool(ExternalTool tool)
     {
-        string toolsDirectory = Path.Combine(AppContext.BaseDirectory, "Tools");
-        string executablePath = Path.Combine(toolsDirectory, toolName, exeFileName);
-        string zipPath = Path.Combine(toolsDirectory, zipFileName);
+        string baseDirectory = AppContext.BaseDirectory;
+        string executablePath = Path.Combine(baseDirectory, tool.ExecutablePath);
+        string zipPath = Path.Combine(baseDirectory, "Tools", tool.ZipFileName);
 
         if (File.Exists(executablePath))
         {
@@ -66,23 +67,25 @@ internal static class Tools
 
         if (!File.Exists(zipPath)) // Sprawdź, czy archiwum ZIP istnieje
         {
-            MessageBox.Show($"Nie znaleziono ani aplikacji {toolName}, ani archiwum {zipFileName}.", $"Brak {toolName}", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Nie znaleziono ani aplikacji {tool.Name}, ani archiwum {tool.ZipFileName}.", $"Brak {tool.Name}", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
         try
         {
-            MessageBox.Show($"Brak aplikacji {toolName}. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", $"Instalacja {toolName}", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Brak aplikacji {tool.Name}. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", $"Instalacja {tool.Name}", MessageBoxButton.OK, MessageBoxImage.Information);
 
-            ZipFile.ExtractToDirectory(zipPath, toolsDirectory, true);
+            // Rozpakuj do katalogu 'Tools', który jest katalogiem nadrzędnym dla archiwum
+            string extractPath = Path.GetDirectoryName(zipPath) ?? baseDirectory;
+            ZipFile.ExtractToDirectory(zipPath, extractPath, true);
 
             File.Delete(zipPath); // Opcjonalnie usuń archiwum po rozpakowaniu
 
-            MessageBox.Show($"Rozpakowywanie {toolName} zakończone.", toolName, MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Rozpakowywanie {tool.Name} zakończone.", tool.Name, MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {toolName}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {tool.Name}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -77,9 +77,11 @@ public partial class MainWindow
         // Upewnij się, że okno jest widoczne na ekranie
         this.EnsureWindowIsOnScreen();
 
-        // Sprawdź i rozpakuj narzędzia
-        Tools.EnsureAndUnpackTool("IrfanView", "irfanview.zip", "IrfanViewPortable.exe");
-        Tools.EnsureAndUnpackTool("GIMP", "gimp.zip", "GIMPPortable.exe");
+        // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
+        foreach (var tool in this._appSettings.Tools)
+        {
+            Tools.EnsureAndUnpackTool(tool);
+        }
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -396,20 +398,32 @@ public partial class MainWindow
 
     private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
     {
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
-        {
-            string executablePath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe");
-            Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
-        }
+        this.LaunchConfiguredTool("IrfanView");
     }
 
     private void ButtonEditGimp_Click(object sender, RoutedEventArgs e)
     {
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        this.LaunchConfiguredTool("GIMP");
+    }
+
+    /// <summary>
+    /// Uruchamia narzędzie zewnętrzne zdefiniowane w konfiguracji.
+    /// </summary>
+    /// <param name="toolName">Nazwa narzędzia (zgodna z wpisem w appsettings.json).</param>
+    private void LaunchConfiguredTool(string toolName)
+    {
+        if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
-            string executablePath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe");
-            Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
+            return; // Nic nie jest zaznaczone
         }
+
+        // Znajdź narzędzie w konfiguracji
+        ExternalTool tool = this._appSettings.Tools.First(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+
+        // Uruchom proces
+        string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
+
+        Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
     }
 
     // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF
