@@ -10,13 +10,10 @@ namespace PDF_Inspektor;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-
-using Microsoft.Win32;
 
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Parsing;
@@ -27,15 +24,16 @@ using Syncfusion.Windows.PdfViewer;
 /// </summary>
 public partial class MainWindow
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private readonly string _jsonPath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
+    // Przechowuje ustawienia aplikacji
     private readonly AppSettings _appSettings;
 
     // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
     private readonly NaturalStringComparer _naturalComparer = new();
 
+    // Przechowuje strumień PDF w pamięci
     private MemoryStream? _pdfStream;
 
+    // Monitoruje zmiany w katalogu
     private FileSystemWatcher _fileWatcher = new();
 
     /// <summary>
@@ -54,13 +52,8 @@ public partial class MainWindow
 
         this.DataContext = this; // Ustawienie kontekstu danych dla bindowania
 
-        if (!File.Exists(this._jsonPath))
-        {
-            this.SaveConfig();
-        }
-
-        string json = File.ReadAllText(this._jsonPath);
-        this._appSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+        // Załaduj ustawienia aplikacji
+        this._appSettings = AppSettings.Load();
     }
 
     /// <summary>
@@ -97,7 +90,7 @@ public partial class MainWindow
         this._appSettings.WindowWidth = this.Width;
         this._appSettings.WindowHeight = this.Height;
 
-        this.SaveConfig(); // Zapisz ustawienia do pliku JSON
+        this._appSettings.Save(); // Zapisz ustawienia
 
         this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
         this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
@@ -112,13 +105,6 @@ public partial class MainWindow
         // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
-    }
-
-    // Zapisz ustawienia do pliku JSON
-    private void SaveConfig()
-    {
-        string json = JsonSerializer.Serialize(this._appSettings, JsonOptions);
-        File.WriteAllText(this._jsonPath, json);
     }
 
     // Obsługa przeciągania i upuszczania plików
@@ -150,7 +136,7 @@ public partial class MainWindow
     private void ButtonMonitorDirectory_Click(object sender, RoutedEventArgs e)
     {
         // Otwórz okno dialogowe wyboru folderu
-        OpenFolderDialog dialog = new()
+        Microsoft.Win32.OpenFolderDialog dialog = new()
         {
             Title = "Wybierz folder do przetwarzania",
         };

@@ -21,7 +21,7 @@ public partial class App
     /// </summary>
     public App()
     {
-        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1JEaF5cXmRCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWXdcc3RQRmNYWUR2W0NWYEk=");
+        this.RegisterSyncfusionLicense();
 
         this.DispatcherUnhandledException += (_, e) =>
         {
@@ -29,5 +29,19 @@ public partial class App
 
             e.Handled = true;
         };
+    }
+
+    private void RegisterSyncfusionLicense()
+    {
+        var settings = AppSettings.Load();
+
+        if (string.IsNullOrEmpty(settings.SyncfusionLicenseKey) || settings.SyncfusionLicenseKey == "SyncfusionLicenseKey")
+        {
+            MessageBox.Show("Klucz licencyjny Syncfusion nie został skonfigurowany w pliku appsettings.json.", "Brak klucza licencyjnego", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            return;
+        }
+
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(settings.SyncfusionLicenseKey);
     }
 }
