@@ -434,31 +434,31 @@ public partial class MainWindow
             return;
         }
 
+        // Zapamiętaj ścieżkę do edytowanego pliku. To jest klucz do rozwiązania problemu.
+        string editedFilePath = selectedPdfFile.FilePath;
+
         // Uruchom proces i przekaż akcję do wykonania po jego zamknięciu
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
 
         Tools.StartExternalProcess(
             executablePath,
-            selectedPdfFile.FilePath,
+            editedFilePath,
             () =>
             {
                 // Ta część kodu wykona się w tle, gdy proces się zakończy.
                 this.Dispatcher.Invoke(() =>
                 {
-                    // Sprawdź, czy plik, który był edytowany, nadal istnieje na liście
-                    if (!this.PdfFiles.Contains(selectedPdfFile))
+                    // Po zamknięciu procesu, znajdź aktualny obiekt pliku w kolekcji na podstawie zapamiętanej ścieżki.
+                    PdfFile? fileToFocus = this.PdfFiles.FirstOrDefault(f => f.FilePath.Equals(editedFilePath, StringComparison.OrdinalIgnoreCase));
+
+                    // Jeśli plik nadal istnieje na liście (nie został np. usunięty lub przemianowany na coś innego), przywróć na nim fokus.
+                    if (fileToFocus != null)
                     {
-                        return;
+                        Debug.WriteLine($"Proces zakończony. Przywracanie fokusu na: {fileToFocus.FileName}");
+                        this.FocusAndScrollToListBoxItem(fileToFocus);
                     }
-
-                    // Odśwież informacje o pliku z dysku
-                    var fileInfo = new FileInfo(selectedPdfFile.FilePath);
-                    fileInfo.Refresh(); // Upewnij się, że dane są aktualne
-
-                    // Niezależnie od tego, czy plik się zmienił, przywróć fokus.
-                    this.FocusAndScrollToListBoxItem(selectedPdfFile);
                 });
-        });
+            });
     }
 
     // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF
@@ -683,9 +683,6 @@ public partial class MainWindow
                         // Ponownie załaduj podgląd, jeśli zmieniony plik jest zaznaczony
                         this.ReloadPdfView(fileToUpdate);
                     }
-
-                    // USUWAMY TĘ LINIĘ: this.FocusAndScrollToListBoxItem(fileToUpdate);
-                    // Fokus zostanie przywrócony przez logikę zamykania procesu.
                 }
             }
             catch (IOException ex)
