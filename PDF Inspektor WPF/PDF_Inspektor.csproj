@@ -16,15 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="gisnet.ico" />
+    <None Remove="Resources\gisnet.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <AdditionalFiles Include="..\..\stylecop.json" Link="stylecop.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Resources\gisnet.ico" />
   </ItemGroup>
 
   <ItemGroup>

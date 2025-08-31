@@ -1,0 +1,85 @@
+﻿using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Windows;
+
+using MessageBox = System.Windows.MessageBox;
+
+namespace PDF_Inspektor;
+
+internal static class Tools
+{
+    /// <summary>
+    /// Sprawdza istnienie narzędzia i rozpakowuje je z archiwum ZIP, jeśli jest to konieczne.
+    /// </summary>
+    public static void EnsureAndUnpackTool(string toolName, string zipFileName, string exeFileName)
+    {
+        string toolsDirectory = Path.Combine(AppContext.BaseDirectory, "Tools");
+        string executablePath = Path.Combine(toolsDirectory, toolName, exeFileName);
+        string zipPath = Path.Combine(toolsDirectory, zipFileName);
+
+        if (File.Exists(executablePath))
+        {
+            return;
+        }
+
+        if (!File.Exists(zipPath)) // Sprawdź, czy archiwum ZIP istnieje
+        {
+            MessageBox.Show($"Nie znaleziono ani aplikacji {toolName}, ani archiwum {zipFileName}.", $"Brak {toolName}", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        try
+        {
+            MessageBox.Show($"Brak aplikacji {toolName}. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", $"Instalacja {toolName}", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            ZipFile.ExtractToDirectory(zipPath, toolsDirectory, true);
+
+            File.Delete(zipPath); // Opcjonalnie usuń archiwum po rozpakowaniu
+
+            MessageBox.Show($"Rozpakowywanie {toolName} zakończone.", toolName, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {toolName}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Synchronicznie czeka, aż plik przestanie być blokowany przez inny proces.
+    /// </summary>
+    /// <param name="fullPath">Pełna ścieżka do pliku.</param>
+    /// <param name="timeoutMs">Maksymalny czas oczekiwania w milisekundach.</param>
+    /// <returns>True, jeśli plik stał się dostępny; w przeciwnym razie false.</returns>
+    public static bool WaitForFile(string fullPath, int timeoutMs = 3000)
+    {
+        Stopwatch sw = Stopwatch.StartNew();
+
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            try
+            {
+                // Spróbuj otworzyć plik z wyłącznym dostępem. Jeśli się uda, oznacza to, że żaden inny proces go nie blokuje.
+                using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.None);
+
+                return true; // Sukces, plik jest dostępny.
+            }
+            catch (FileNotFoundException)
+            {
+                // Plik został usunięty w międzyczasie.
+                Debug.WriteLine("Plik został usunięty podczas oczekiwania.");
+
+                return false;
+            }
+            catch (IOException)
+            {
+                // Plik jest w użyciu, poczekaj i spróbuj ponownie.
+                Debug.WriteLine("Plik jest nadal używany, oczekiwanie...");
+                Thread.Sleep(100); // Poczekaj 100 ms przed ponowną próbą (blokuje bieżący wątek).
+            }
+        }
+
+        Debug.WriteLine("Przekroczono limit czasu oczekiwania na plik.");
+        return false; // Przekroczono limit czasu.
+    }
+}

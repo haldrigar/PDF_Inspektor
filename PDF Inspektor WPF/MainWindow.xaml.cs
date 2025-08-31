@@ -10,7 +10,6 @@ namespace PDF_Inspektor;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -40,7 +39,7 @@ public partial class MainWindow
     private FileSystemWatcher _fileWatcher = new();
 
     /// <summary>
-    /// Initializuje nową instancję klasy <see cref="MainWindow"/>.
+    /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
     /// </summary>
     public MainWindow()
     {
@@ -74,49 +73,7 @@ public partial class MainWindow
     /// </summary>
     public PdfFile? SelectedPdfFile { get; set; }
 
-    // =======================================================================
-    // NOWA METODA POMOCNICZA DO OCZEKIWANIA NA PLIK
-    // =======================================================================
-
-    /// <summary>
-    /// Asynchronicznie czeka, aż plik przestanie być blokowany przez inny proces.
-    /// </summary>
-    /// <param name="fullPath">Pełna ścieżka do pliku.</param>
-    /// <param name="timeoutMs">Maksymalny czas oczekiwania w milisekundach.</param>
-    /// <returns>True, jeśli plik stał się dostępny; w przeciwnym razie false.</returns>
-    private static async Task<bool> WaitForFileAsync(string fullPath, int timeoutMs = 60000)
-    {
-        Stopwatch sw = Stopwatch.StartNew();
-
-        while (sw.ElapsedMilliseconds < timeoutMs)
-        {
-            try
-            {
-                // Spróbuj otworzyć plik z wyłącznym dostępem. Jeśli się uda, oznacza to, że żaden inny proces go nie blokuje.
-                await using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.None);
-
-                return true; // Sukces, plik jest dostępny.
-            }
-            catch (FileNotFoundException)
-            {
-                // Plik został usunięty w międzyczasie.
-                Debug.WriteLine("Plik został usunięty.");
-
-                return false;
-            }
-            catch (IOException)
-            {
-                // Plik jest w użyciu, poczekaj i spróbuj ponownie.
-                Debug.WriteLine("Plik jest nadal używany, oczekiwanie...");
-
-                await Task.Delay(100); // Poczekaj 100 ms przed ponowną próbą.
-            }
-        }
-
-        return false; // Przekroczono limit czasu.
-    }
-
-    // Funkcje obsłgująca uruchomienie okna
+    // Funkcje obsługująca uruchomienie okna
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         this.Top = this._appSettings.WindowTop;
@@ -128,44 +85,8 @@ public partial class MainWindow
         this.EnsureWindowIsOnScreen();
 
         // Sprawdź i rozpakuj narzędzia
-        this.EnsureAndUnpackTool("IrfanView", "irfanview.zip", "IrfanViewPortable.exe");
-        this.EnsureAndUnpackTool("GIMP", "gimp.zip", "GIMPPortable.exe");
-    }
-
-    /// <summary>
-    /// Sprawdza istnienie narzędzia i rozpakowuje je z archiwum ZIP, jeśli jest to konieczne.
-    /// </summary>
-    private void EnsureAndUnpackTool(string toolName, string zipFileName, string exeFileName)
-    {
-        string toolsDirectory = Path.Combine(AppContext.BaseDirectory, "Tools");
-        string executablePath = Path.Combine(toolsDirectory, toolName, exeFileName);
-        string zipPath = Path.Combine(toolsDirectory, zipFileName);
-
-        if (File.Exists(executablePath))
-        {
-            return;
-        }
-
-        if (!File.Exists(zipPath)) // Sprawdź, czy archiwum ZIP istnieje
-        {
-            MessageBox.Show($"Nie znaleziono ani aplikacji {toolName}, ani archiwum {zipFileName}.", $"Brak {toolName}", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        try
-        {
-            MessageBox.Show($"Brak aplikacji {toolName}. Nastąpi rozpakowanie archiwum. Poczekaj na komunikat o zakończeniu.", $"Instalacja {toolName}", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            ZipFile.ExtractToDirectory(zipPath, toolsDirectory, true);
-
-            File.Delete(zipPath); // Opcjonalnie usuń archiwum po rozpakowaniu
-
-            MessageBox.Show($"Rozpakowywanie {toolName} zakończone.", toolName, MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {toolName}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        Tools.EnsureAndUnpackTool("IrfanView", "irfanview.zip", "IrfanViewPortable.exe");
+        Tools.EnsureAndUnpackTool("GIMP", "gimp.zip", "GIMPPortable.exe");
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -180,6 +101,17 @@ public partial class MainWindow
 
         this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
         this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
+    }
+
+    // Obsługa zmiany rozmiaru okna
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Po zmianie rozmiaru okna, ustaw ponownie tryb powiększenia na "Dopasuj stronę"
+        this.PdfViewer.ZoomMode = ZoomMode.FitPage;
+
+        // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
+        this.PdfViewer.Width = double.NaN;
+        this.PdfViewer.Height = double.NaN;
     }
 
     // Zapisz ustawienia do pliku JSON
@@ -214,7 +146,7 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa przycisku "Monitotuj katalog"
+    // Obsługa przycisku "Otwórz katalog"
     private void ButtonMonitorDirectory_Click(object sender, RoutedEventArgs e)
     {
         // Otwórz okno dialogowe wyboru folderu
@@ -325,8 +257,6 @@ public partial class MainWindow
 
         try
         {
-            // ======================== KLUCZOWA ZMIANA LOGIKI ========================
-
             // 1. Zamknij i zwolnij poprzedni strumień w pamięci, jeśli istnieje.
             this._pdfStream?.Dispose();
 
@@ -359,8 +289,8 @@ public partial class MainWindow
     {
         this.PdfViewer.ZoomMode = ZoomMode.FitPage; // Ustawienie trybu powiększenia na "Dopasuj stronę"
 
-        // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
-        // Bo po każdym załadowaniu dokumentu PdfViewer ustawia rozmiar na wielkość obrazu
+        // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru, bo
+        // po każdym załadowaniu dokumentu PdfViewer ustawia rozmiar na wielkość obrazu
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
 
@@ -406,7 +336,7 @@ public partial class MainWindow
     // Obsługa przycisków obrotu
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
-        bool rotateRight = e.RoutedEvent.Name == "Click"; // Przycisk "Obróć w prawo" ma zdarzenie "Click", a "Obróć w lewo" ma zdarzenie inne
+        bool rotateRight = e.RoutedEvent.Name == "Click"; // Przycisk "Obróć w prawo" ma zdarzenie "Click" a "Obróć w lewo" ma zdarzenie inne
 
         this.RotateAndSave(rotateRight);
 
@@ -580,7 +510,7 @@ public partial class MainWindow
         {
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.LastWrite,
             Filter = "*.pdf",
-            IncludeSubdirectories = true,
+            IncludeSubdirectories = false,
             EnableRaisingEvents = true,
             InternalBufferSize = 65536,
         };
@@ -592,41 +522,30 @@ public partial class MainWindow
     }
 
     // Obsługa zdarzenia utworzenia pliku
-    private async void FileWatcher_Created(object sender, FileSystemEventArgs e)
+    private void FileWatcher_Created(object sender, FileSystemEventArgs e)
     {
-        try
+        this.Dispatcher.Invoke(() =>
         {
-            // Krok 1: Natychmiast poinformuj użytkownika, że zaczynamy pracę nad plikiem.
-            await this.Dispatcher.InvokeAsync(() => this.StatusBarItemInfo.Content = $"Wykryto nowy plik: {e.Name}...");
-
-            // Krok 2: W tle poczekaj na plik, a następnie utwórz obiekt PdfFile.
-            PdfFile? fileToAdd = await Task.Run(async () =>
+            try
             {
-                // POCZEKAJ, AŻ PLIK BĘDZIE GOTOWY
-                bool isFileReady = await WaitForFileAsync(e.FullPath);
+                this.StatusBarItemInfo.Content = $"Wykryto nowy plik: {e.Name}...";
 
-                // Jeśli plik nie jest gotowy (np. przekroczono limit czasu) zwróć null, w przeciwnym razie utwórz PdfFile
-                return isFileReady ? new PdfFile(e.FullPath) : null;
-            });
+                // Synchronicznie poczekaj, aż plik będzie gotowy.
+                if (!Tools.WaitForFile(e.FullPath))
+                {
+                    this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {e.Name}";
+                    return;
+                }
 
-            // Jeśli fileToAdd jest null, to znaczy, że nie udało się uzyskać dostępu do pliku.
-            if (fileToAdd == null)
-            {
-                await this.Dispatcher.InvokeAsync(() => this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {e.Name}");
-
-                return;
-            }
-
-            // Krok 3: Przełącz się na wątek UI, aby zaktualizować kolekcję i interfejs.
-            await this.Dispatcher.InvokeAsync(() =>
-            {
-                // Sprawdzamy, czy plik już istnieje na liście (zapobiega duplikatom na udziałach sieciowych).
+                // Sprawdzamy, czy plik już istnieje na liście (zapobiega duplikatom).
                 if (this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
                 {
                     return;
                 }
 
                 Debug.WriteLine($"FileWatcher_Created => Znaleziono nowy plik: {e.FullPath}!");
+
+                var fileToAdd = new PdfFile(e.FullPath);
 
                 // Znajdź indeks, pod którym należy wstawić nowy plik, aby zachować porządek.
                 int insertIndex = 0;
@@ -636,41 +555,31 @@ public partial class MainWindow
                     insertIndex++;
                 }
 
-                // Wstaw plik w odpowiednie miejsce zamiast dodawać i sortować.
+                // Wstaw plik w odpowiednie miejsce.
                 this.PdfFiles.Insert(insertIndex, fileToAdd);
 
                 // Ustawienie zaznaczenia na nowo dodany plik i przewinięcie do niego.
                 this.FocusAndScrollToListBoxItem(fileToAdd);
 
-                // Krok 4: Poinformuj użytkownika o zakończeniu operacji dla tego pliku.
                 this.StatusBarItemInfo.Content = $"Dodano: {e.Name}";
-            });
-        }
-        catch (IOException ex) // Ten błąd może się pojawić, jeśli plik zostanie usunięty tuż po sprawdzeniu
-        {
-            await this.Dispatcher.InvokeAsync(() => this.StatusBarItemInfo.Content = $"Błąd I/O podczas tworzenia pliku: {e.FullPath}. Błąd: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                this.StatusBarItemInfo.Content = $"Błąd podczas dodawania pliku: {e.Name}";
 
-            Debug.WriteLine($"Błąd I/O podczas tworzenia pliku: {e.FullPath}. Błąd: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            await this.Dispatcher.InvokeAsync(() => this.StatusBarItemInfo.Content = $"Nieoczekiwany błąd w FileWatcher_Created: {ex.Message}");
-
-            Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Created: {ex.Message}");
-        }
+                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Created: {ex.Message}");
+            }
+        });
     }
 
-    // Obsługa zdarzenia usunięcia pliku - WERSJA ASYNCHRONICZNA I BEZPIECZNA
-    private async void FileWatcher_Deleted(object sender, FileSystemEventArgs e)
+    // Obsługa zdarzenia usunięcia pliku
+    private void FileWatcher_Deleted(object sender, FileSystemEventArgs e)
     {
-        try
+        this.Dispatcher.Invoke(() =>
         {
-            await this.Dispatcher.InvokeAsync(() =>
+            try
             {
-                // Szukamy pliku do usunięcia na podstawie ścieżki.
                 PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
-
-                // Jeśli plik nie został znaleziony na naszej liście, nic nie rób.
                 if (fileToRemove == null)
                 {
                     return;
@@ -679,64 +588,47 @@ public partial class MainWindow
                 Debug.WriteLine($"FileWatcher_Deleted => Wykryto usunięcie pliku: {e.FullPath}!");
 
                 int removedIndex = this.PdfFiles.IndexOf(fileToRemove);
-
                 bool wasSelected = this.SelectedPdfFile == fileToRemove;
 
-                // Jeśli usuwany plik jest aktualnie załadowany w podglądzie,
-                // MUSIMY zwolnić zasoby PRZED jakąkolwiek inną operacją.
                 if (wasSelected)
                 {
-                    this.PdfViewer.Unload(true); // Zwalnia blokadę pliku i czyści stan kontrolki.
+                    this.PdfViewer.Unload(true);
                 }
 
-                // Teraz bezpiecznie usuń plik z kolekcji.
                 this.PdfFiles.Remove(fileToRemove);
 
-                // Sprawdź, czy lista jest teraz pusta.
                 if (this.PdfFiles.Count == 0)
                 {
                     this.StatusBarItemMain.Content = "Gotowy!";
                     this.StatusBarItemInfo.Content = "Wszystkie pliki zostały usunięte.";
-                    return; // Zakończ, nie ma czego zaznaczać.
+                    return;
                 }
 
-                // Jeśli usunięto aktualnie zaznaczony plik, zaznacz inny element, aby uniknąć "pustego" widoku.
                 if (wasSelected)
                 {
-                    // Ustal nowy indeks. Jeśli usunięto ostatni element, zaznacz nowy ostatni.
                     int newIndex = removedIndex >= this.PdfFiles.Count ? this.PdfFiles.Count - 1 : removedIndex;
-
-                    // Zaznacz nowy element na liście. To wywoła zdarzenie SelectionChanged,
-                    // które teraz bezpiecznie załaduje nowy plik, bo PdfViewer jest gotowy.
                     this.ListBoxFiles.SelectedIndex = newIndex;
-
-                    // Dodatkowo ustaw fokus i przewiń do nowego elementu.
                     if (this.ListBoxFiles.SelectedItem is PdfFile newSelectedItem)
                     {
                         this.FocusAndScrollToListBoxItem(newSelectedItem);
                     }
                 }
-            });
-        }
-        catch (Exception ex)
-        {
-            // Logowanie nieoczekiwanych błędów, które mogą się zdarzyć pomimo zabezpieczeń.
-            Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Deleted: {ex.Message}");
-        }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Deleted: {ex.Message}");
+            }
+        });
     }
 
-    // Obsługa zdarzenia zmiany nazwy pliku - WERSJA ASYNCHRONICZNA
-    private async void FileWatcher_Renamed(object sender, RenamedEventArgs e)
+    // Obsługa zdarzenia zmiany nazwy pliku
+    private void FileWatcher_Renamed(object sender, RenamedEventArgs e)
     {
-        try
+        this.Dispatcher.Invoke(() =>
         {
-            // Przełączamy się na wątek UI, aby bezpiecznie modyfikować kolekcję i właściwości obiektów.
-            await this.Dispatcher.InvokeAsync(() =>
+            try
             {
-                // Szukamy pliku do zmiany nazwy na podstawie 'e.OldFullPath'.
                 PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
-
-                // Jeśli plik nie został znaleziony, zakończ.
                 if (fileToRename == null)
                 {
                     return;
@@ -744,106 +636,69 @@ public partial class MainWindow
 
                 Debug.WriteLine($"FileWatcher_Renamed => Zmieniono nazwę pliku na: {e.FullPath}!");
 
-                // Krok 1: Usuń element z kolekcji.
                 this.PdfFiles.Remove(fileToRename);
 
-                // Krok 2: Zaktualizuj właściwości obiektu nowymi danymi.
                 fileToRename.FilePath = e.FullPath;
                 fileToRename.FileName = Path.GetFileName(e.FullPath);
                 fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
 
-                // Krok 3: Znajdź nowy, poprawny indeks dla elementu (ta sama logika co w FileWatcher_Created).
                 int newIndex = 0;
-
                 while (newIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[newIndex].FilePath, fileToRename.FilePath) < 0)
                 {
                     newIndex++;
                 }
 
-                // Krok 4: Wstaw zaktualizowany obiekt na właściwe miejsce.
                 this.PdfFiles.Insert(newIndex, fileToRename);
-
-                // Krok 5: Ustaw fokus na przeniesionym elemencie.
                 this.FocusAndScrollToListBoxItem(fileToRename);
-            });
-        }
-        catch (Exception ex)
-        {
-            // Logowanie nieoczekiwanych błędów.
-            Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Renamed: {ex.Message}");
-        }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Renamed: {ex.Message}");
+            }
+        });
     }
 
     // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
-    private async void FileWatcher_Changed(object sender, FileSystemEventArgs e)
+    private void FileWatcher_Changed(object sender, FileSystemEventArgs e)
     {
-        try
+        this.Dispatcher.Invoke(() =>
         {
-            // Czekamy chwilę asynchronicznie, aby upewnić się, że operacja zapisu pliku została w pełni zakończona.
-            // Zapobiega to błędom odczytu pliku, który jest jeszcze blokowany przez inny proces.
-            // Użycie Task.Delay zamiast Thread.Sleep nie blokuje wątku.
-            await Task.Delay(200);
-
-            // Operacje na pliku (I/O) wykonujemy w tle, aby nie blokować UI.
-            // Sprawdzamy, czy plik istnieje i pobieramy jego właściwości.
-            FileInfo fileInfo = new(e.FullPath);
-
-            if (!fileInfo.Exists)
+            try
             {
-                return;
-            }
+                // Czekamy chwilę, aby operacja zapisu pliku mogła się w pełni zakończyć.
+                Thread.Sleep(200);
 
-            long fileSize = fileInfo.Length;
+                if (!File.Exists(e.FullPath))
+                {
+                    return;
+                }
 
-            DateTime lastWriteTime = fileInfo.LastWriteTime;
+                FileInfo fileInfo = new(e.FullPath);
+                long fileSize = fileInfo.Length;
 
-            // Teraz, gdy mamy już dane, przechodzimy na wątek UI, aby zaktualizować kolekcję i kontrolki.
-            await this.Dispatcher.InvokeAsync(() =>
-            {
-                // Znajdź obiekt PDF odpowiadający nazwie pliku ale z innym rozmiarem lub datą modyfikacji.
-                // To zapobiega wielokrotnemu wywoływaniu przy pojedynczej zmianie.
-                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase) && (p.FileSize != fileSize || p.LastWriteTime != lastWriteTime));
+                DateTime lastWriteTime = fileInfo.LastWriteTime;
 
-                // Jeśli plik został znaleziony, zaktualizuj jego właściwości.
-                if (fileToUpdate != null)
+                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+                if (fileToUpdate != null && (fileToUpdate.FileSize != fileSize || fileToUpdate.LastWriteTime != lastWriteTime))
                 {
                     Debug.WriteLine($"FileWatcher_Changed => Znaleziono zmodyfikowany plik: {e.FullPath}!");
 
                     fileToUpdate.FileSize = fileSize;
                     fileToUpdate.LastWriteTime = lastWriteTime;
 
-                    // Jeżeli zaktualizowany plik jest aktualnie zaznaczonym plikiem, ponownie załaduj go do PdfViewer.
                     if (this.SelectedPdfFile == fileToUpdate)
                     {
-                        // Ponowne załadowanie pliku PDF, aby odświeżyć widok.
                         this.PdfViewer.Load(fileToUpdate.FilePath);
                     }
 
                     this.FocusAndScrollToListBoxItem(fileToUpdate);
                 }
-            });
-        }
-        catch (IOException ex)
-        {
-            // Ciche przechwytywanie błędów, które mogą wystąpić, jeśli plik jest nadal używany.
-            Debug.WriteLine($"Błąd I/O podczas sprawdzania pliku: {e.FullPath}. Błąd: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            // Logowanie innych, nieoczekiwanych błędów.
-            Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Changed: {ex.Message}");
-        }
-    }
-
-    // Obsługa zmiany rozmiaru okna
-    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        // Po zmianie rozmiaru okna, ustaw ponownie tryb powiększenia na "Dopasuj stronę"
-        this.PdfViewer.ZoomMode = ZoomMode.FitPage;
-
-        // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
-        this.PdfViewer.Width = double.NaN;
-        this.PdfViewer.Height = double.NaN;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd w FileWatcher_Changed: {ex.Message}");
+            }
+        });
     }
 
     // Funkcja zapewniająca, że okno jest widoczne na ekranie
@@ -907,10 +762,6 @@ public partial class MainWindow
         }
     }
 
-    // =======================================================================
-    // METODA POMOCNICZA DO PRZEWIJANIA I USTAWIANIA FOKUSU
-    // =======================================================================
-
     /// <summary>
     /// Ustawia fokus na podanym elemencie w ListBox, przewijając do niego, jeśli jest to konieczne.
     /// </summary>
@@ -930,7 +781,7 @@ public partial class MainWindow
         // To spowoduje, że WPF utworzy dla niego kontener (ListBoxItem), jeśli nie był widoczny.
         this.ListBoxFiles.ScrollIntoView(itemToFocus);
 
-        // Użyj Dispatcher.InvokeAsync z niskim priorytetem, aby ustawić fokus.
+        // Użyj Dispatcher InvokeAsync z niskim priorytetem, aby ustawić fokus.
         // Daje to WPF czas na przetworzenie ScrollIntoView i utworzenie kontenera wizualnego.
         this.Dispatcher.InvokeAsync(
             () =>
