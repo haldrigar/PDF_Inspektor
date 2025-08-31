@@ -398,10 +398,13 @@ public partial class MainWindow
         if (!success)
         {
             MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            // Jeśli operacja się nie udała, musimy zresetować kursor ręcznie.
+            Mouse.OverrideCursor = null;
         }
 
-        // Zawsze resetuj kursor, nawet jeśli operacja się nie powiedzie.
-        Mouse.OverrideCursor = null;
+        // Jeśli operacja się udała, NIE resetujemy kursora tutaj.
+        // Zrobi to za nas metoda PdfViewer_DocumentLoaded po odświeżeniu widoku.
     }
 
     private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
