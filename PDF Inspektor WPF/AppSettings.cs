@@ -41,7 +41,7 @@ internal class AppSettings
     [JsonIgnore]
     private static readonly string ConfigFilePath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
 
-    /// Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
+    // Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
     [JsonIgnore]
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
@@ -71,12 +71,12 @@ internal class AppSettings
     public double WindowHeight { get; set; } = 600;
 
     /// <summary>
-    /// Pobiera lub ustawia listę skonfigurowanych narzędzi zewnętrznych.
+    /// Pobiera listę skonfigurowanych narzędzi zewnętrznych.
     /// </summary>
-    public List<ExternalTool> Tools { get; set; } =
+    public List<ExternalTool> Tools { get; init; } =
     [
-        new ExternalTool { Name = "IrfanView", ExecutablePath = @"Tools\IrfanView\IrfanViewPortable.exe", ZipFileName = "irfanview.zip" },
-        new ExternalTool { Name = "GIMP", ExecutablePath = @"Tools\GIMP\GIMPPortable.exe", ZipFileName = "gimp.zip" },
+        new() { Name = "IrfanView", ExecutablePath = @"Tools\IrfanView\IrfanViewPortable.exe", ZipFileName = "irfanview.zip" },
+        new() { Name = "GIMP", ExecutablePath = @"Tools\GIMP\GIMPPortable.exe", ZipFileName = "gimp.zip" },
     ];
 
     /// <summary>

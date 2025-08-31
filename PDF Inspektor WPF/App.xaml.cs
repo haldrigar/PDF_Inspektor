@@ -5,11 +5,11 @@
 // </copyright>
 // ====================================================================================================
 
+namespace PDF_Inspektor;
+
 using System.Windows;
 
 using MessageBox = System.Windows.MessageBox;
-
-namespace PDF_Inspektor;
 
 /// <summary>
 /// Interaction logic for App.xaml.
@@ -21,7 +21,7 @@ public partial class App
     /// </summary>
     public App()
     {
-        this.RegisterSyncfusionLicense();
+        RegisterSyncfusionLicense();
 
         this.DispatcherUnhandledException += (_, e) =>
         {
@@ -31,7 +31,7 @@ public partial class App
         };
     }
 
-    private void RegisterSyncfusionLicense()
+    private static void RegisterSyncfusionLicense()
     {
         var settings = AppSettings.Load();
 

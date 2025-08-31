@@ -7,6 +7,8 @@
 
 namespace PDF_Inspektor;
 
+using System.IO;
+
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Exporting;
 using Syncfusion.Pdf.Parsing;
@@ -16,6 +18,58 @@ using Syncfusion.Pdf.Parsing;
 /// </summary>
 internal static class PDFTools
 {
+    /// <summary>
+    /// Obraca pierwszą stronę dokumentu PDF o 90 stopni i zapisuje zmiany.
+    /// </summary>
+    /// <param name="filePath">Ścieżka do pliku PDF.</param>
+    /// <param name="rotateRight">True, aby obrócić w prawo; false, aby obrócić w lewo.</param>
+    /// <returns>True, jeśli operacja się powiodła; w przeciwnym razie false.</returns>
+    public static bool RotateAndSave(string filePath, bool rotateRight)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            // Załaduj dokument bezpośrednio z pliku. Syncfusion poradzi sobie z tymczasowym dostępem.
+            var loadedDocument = new PdfLoadedDocument(filePath);
+
+            // Sprawdzenie, czy dokument ma co najmniej jedną stronę
+            if (loadedDocument.Pages.Count == 0)
+            {
+                loadedDocument.Close(true);
+                return false;
+            }
+
+            if (loadedDocument.Pages[0] is not PdfLoadedPage loadedPage)
+            {
+                loadedDocument.Close(true);
+                return false;
+            }
+
+            int rotationAngle = (int)PdfPageRotateAngle.RotateAngle90;
+            int currentRotation = (int)loadedPage.Rotation;
+            int newRotation = rotateRight
+                ? (currentRotation + rotationAngle) % 360
+                : (currentRotation - rotationAngle + 360) % 360;
+
+            loadedPage.Rotation = (PdfPageRotateAngle)newRotation;
+
+            // Zapisz i zamknij dokument, zwalniając zasoby.
+            loadedDocument.Save();
+            loadedDocument.Close(true);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Błąd podczas obracania i zapisywania pliku: {ex.Message}");
+            return false;
+        }
+    }
+
     /// <summary>
     /// Funkcja zwracająca rozdzielczość DPI pierwszego obrazu na pierwszej stronie dokumentu PDF,
     /// niezależnie od rotacji strony.

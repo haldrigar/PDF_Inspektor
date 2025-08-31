@@ -18,7 +18,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 
 using Syncfusion.Pdf;
-using Syncfusion.Pdf.Parsing;
 using Syncfusion.Windows.PdfViewer;
 
 /// <summary>
@@ -252,7 +251,7 @@ public partial class MainWindow
     /// <summary>
     /// Funkcja przeładowująca widok PdfViewer z pliku PDF.
     /// </summary>
-    /// <param name="pdfFile"></param>
+    /// <param name="pdfFile">Plik PDF.</param>
     private void ReloadPdfView(PdfFile pdfFile)
     {
         if (!File.Exists(pdfFile.FilePath))
@@ -387,29 +386,22 @@ public partial class MainWindow
     // Funkcja obracająca stronę i zapisująca zmiany
     private void RotateAndSave(bool rotateRight)
     {
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
-            Mouse.OverrideCursor = Cursors.Wait;
-
-            PdfLoadedDocument loadedDocument = this.PdfViewer.LoadedDocument; // Pobranie załadowanego dokumentu PDF
-
-            // Sprawdzenie, czy dokument ma co najmniej jedną stronę
-            if (loadedDocument.Pages[0] is PdfLoadedPage loadedPage)
-            {
-                int rotationAngle = (int)PdfPageRotateAngle.RotateAngle90; // Kąt obrotu (90 stopni)
-
-                int currentRotation = (int)loadedPage.Rotation; // Aktualny kąt obrotu strony
-
-                int newRotation = rotateRight ? (currentRotation + rotationAngle) % 360 : (currentRotation - rotationAngle + 360) % 360; // Nowy kąt obrotu strony
-
-                loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustawienie nowego kąta obrotu strony
-
-                string filePath = selectedPdfFile.FilePath; // Ścieżka do zaznaczonego pliku PDF
-
-                // Zapisanie zmian w pliku PDF
-                loadedDocument.Save(filePath);
-            }
+            return;
         }
+
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        bool success = PDFTools.RotateAndSave(selectedPdfFile.FilePath, rotateRight);
+
+        if (!success)
+        {
+            MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        // Zawsze resetuj kursor, nawet jeśli operacja się nie powiedzie.
+        Mouse.OverrideCursor = null;
     }
 
     private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
@@ -442,10 +434,31 @@ public partial class MainWindow
             return;
         }
 
-        // Uruchom proces
+        // Uruchom proces i przekaż akcję do wykonania po jego zamknięciu
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
 
-        Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
+        Tools.StartExternalProcess(
+            executablePath,
+            selectedPdfFile.FilePath,
+            () =>
+            {
+                // Ta część kodu wykona się w tle, gdy proces się zakończy.
+                this.Dispatcher.Invoke(() =>
+                {
+                    // Sprawdź, czy plik, który był edytowany, nadal istnieje na liście
+                    if (!this.PdfFiles.Contains(selectedPdfFile))
+                    {
+                        return;
+                    }
+
+                    // Odśwież informacje o pliku z dysku
+                    var fileInfo = new FileInfo(selectedPdfFile.FilePath);
+                    fileInfo.Refresh(); // Upewnij się, że dane są aktualne
+
+                    // Niezależnie od tego, czy plik się zmienił, przywróć fokus.
+                    this.FocusAndScrollToListBoxItem(selectedPdfFile);
+                });
+        });
     }
 
     // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF
@@ -671,7 +684,8 @@ public partial class MainWindow
                         this.ReloadPdfView(fileToUpdate);
                     }
 
-                    this.FocusAndScrollToListBoxItem(fileToUpdate);
+                    // USUWAMY TĘ LINIĘ: this.FocusAndScrollToListBoxItem(fileToUpdate);
+                    // Fokus zostanie przywrócony przez logikę zamykania procesu.
                 }
             }
             catch (IOException ex)
