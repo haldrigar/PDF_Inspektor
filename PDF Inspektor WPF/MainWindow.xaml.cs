@@ -308,35 +308,18 @@ public partial class MainWindow
             }
         }
 
-        // ==========================================================================================================
-
-        // Jeżeli jest zaznaczony plik
-        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
+        int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
         {
-            if (this.PdfViewer.LoadedDocument.Pages.Count > 0) // Sprawdź, czy dokument ma strony
-            {
-                int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
-                {
-                    PdfPageRotateAngle.RotateAngle0 => 0,
-                    PdfPageRotateAngle.RotateAngle90 => 90,
-                    PdfPageRotateAngle.RotateAngle180 => 180,
-                    PdfPageRotateAngle.RotateAngle270 => 270,
-                    _ => throw new NotImplementedException()
-                };
-                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX} x {dpiY} | Obrót: {rotation}";
-            }
-            else
-            {
-                errors.Add("PUSTY DOKUMENT");
-            }
+            PdfPageRotateAngle.RotateAngle0 => 0,
+            PdfPageRotateAngle.RotateAngle90 => 90,
+            PdfPageRotateAngle.RotateAngle180 => 180,
+            PdfPageRotateAngle.RotateAngle270 => 270,
+            _ => throw new NotImplementedException()
+        };
 
-            // Po każdym załadowaniu podglądu upewnij się, że fokus jest na właściwym elemencie listy.
-            this.FocusAndScrollToListBoxItem(selectedPdfFile);
-        }
-        else // Jeżeli nie ma zaznaczonego pliku
-        {
-            errors.Add("BŁĄD ŁADOWANIA PLIKU");
-        }
+        this.StatusBarItemMain.Content =
+            $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {this.SelectedPdfFile!.FileName} | Rozmiar: {this.SelectedPdfFile!.FileSize / 1024.0:F0} KB | DPI: {dpiX} x {dpiY} | Obrót: {rotation}";
+
 
         // ------------------------------------------------------------------------------
         // Jeżeli są błędy
@@ -361,6 +344,14 @@ public partial class MainWindow
     // Obsługa przycisków obrotu
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element
+        if (this.ListBoxFiles.SelectedItems.Count != 1)
+        {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+            return;
+        }
+
         bool rotateRight = e is not MouseButtonEventArgs { ChangedButton: MouseButton.Right };
 
         this.RotateAndSave(rotateRight);
@@ -371,14 +362,19 @@ public partial class MainWindow
     // Obsługa klawiszy na liście plików
     private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Right)
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element dla operacji obrotu
+        if (e.Key == Key.Right || e.Key == Key.Left)
         {
-            this.RotateAndSave(true);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Left)
-        {
-            this.RotateAndSave(false);
+            if (this.ListBoxFiles.SelectedItems.Count != 1)
+            {
+                this.StatusBarItemInfo.Content = "Obrót wymaga zaznaczenia jednego pliku.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+                e.Handled = true;
+                return;
+            }
+
+            this.RotateAndSave(e.Key == Key.Right);
+
             e.Handled = true;
         }
         else if (e.Key == Key.Delete) // Obsługa klawisza Delete do usuwania pliku
@@ -496,12 +492,22 @@ public partial class MainWindow
     /// <param name="toolName">Nazwa narzędzia (zgodna z wpisem w appsettings.json).</param>
     private void LaunchConfiguredTool(string toolName)
     {
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element
+        if (this.ListBoxFiles.SelectedItems.Count != 1)
+        {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
+            return;
+        }
+
         if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
             return;
         }
 
         ExternalTool? tool = this._appSettings.Tools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+
         if (tool == null)
         {
             MessageBox.Show($"Nie znaleziono konfiguracji dla narzędzia '{toolName}' w pliku ustawień.", "Błąd konfiguracji", MessageBoxButton.OK, MessageBoxImage.Error);
