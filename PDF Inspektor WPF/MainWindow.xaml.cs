@@ -280,59 +280,76 @@ public partial class MainWindow
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
     {
         this.PdfViewer.ZoomMode = ZoomMode.FitPage;
-
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
-
         this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
 
-        // =========================================== SPRAWDZENIE BŁĘDÓW ===========================================
-        List<string> errors = []; // Lista błędów do wyświetlenia
+        List<string> errors = [];
+        int dpiX = 0, dpiY = 0;
+        int rotation = 0;
 
-        (int dpiX, int dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+        string mainStatusText = "Błąd ładowania dokumentu!";
 
-        if (Math.Abs(dpiX - 300) > 1 || Math.Abs(dpiY - 300) > 1)
+        // Najpierw sprawdź, czy w ogóle mamy załadowany i zaznaczony plik
+        if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            errors.Add("BŁĄD DPI");
+            // Sprawdź, czy dokument PDF ma strony
+            if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
+            {
+                (dpiX, dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+                if (Math.Abs(dpiX - 300) > 1 || Math.Abs(dpiY - 300) > 1)
+                {
+                    errors.Add("BŁĄD DPI");
+                }
+
+                rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
+                {
+                    PdfPageRotateAngle.RotateAngle0 => 0,
+                    PdfPageRotateAngle.RotateAngle90 => 90,
+                    PdfPageRotateAngle.RotateAngle180 => 180,
+                    PdfPageRotateAngle.RotateAngle270 => 270,
+                    _ => 0,
+                };
+            }
+            else
+            {
+                errors.Add("PUSTY DOKUMENT");
+            }
+
+            // Główny status jest ustawiany ZAWSZE, gdy mamy zaznaczony plik
+            mainStatusText = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX}x{dpiY} | Obrót: {rotation}°";
+        }
+        else
+        {
+            errors.Add("BŁĄD ZAZNACZENIA");
         }
 
-        // Sprawdź, czy FileWatcher jest aktywny i ma poprawną ścieżkę
+        // Test liczby plików (zgodnie z Twoim życzeniem) - wykonujemy go niezależnie
         if (!string.IsNullOrEmpty(this._fileWatcher.Path) && Directory.Exists(this._fileWatcher.Path))
         {
-            // sprawdź ilość pliku w monitorowanym katalogu
-            int totalFileCount = Directory.GetFiles(this._fileWatcher.Path, "*.pdf").Length;
-
-            if (totalFileCount != this.PdfFiles.Count)
+            try
             {
-                errors.Add("BŁĄD ILOŚCI PLIKÓW");
+                int fileCountOnDisk = Directory.GetFiles(this._fileWatcher.Path, "*.pdf").Length;
+                if (fileCountOnDisk != this.PdfFiles.Count)
+                {
+                    errors.Add($"NIESPÓJNA LICZBA PLIKÓW ({this.PdfFiles.Count} na liście, {fileCountOnDisk} na dysku)");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd podczas sprawdzania liczby plików: {ex.Message}");
             }
         }
 
-        int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
-        {
-            PdfPageRotateAngle.RotateAngle0 => 0,
-            PdfPageRotateAngle.RotateAngle90 => 90,
-            PdfPageRotateAngle.RotateAngle180 => 180,
-            PdfPageRotateAngle.RotateAngle270 => 270,
-            _ => throw new NotImplementedException()
-        };
+        // --- Wyświetlanie Statusu ---
+        this.StatusBarItemMain.Content = mainStatusText;
 
-        this.StatusBarItemMain.Content =
-            $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {this.SelectedPdfFile!.FileName} | Rozmiar: {this.SelectedPdfFile!.FileSize / 1024.0:F0} KB | DPI: {dpiX} x {dpiY} | Obrót: {rotation}";
-
-
-        // ------------------------------------------------------------------------------
-        // Jeżeli są błędy
-        // ------------------------------------------------------------------------------
         if (errors.Count > 0)
         {
-            string errorMessage = string.Join("; ", errors);
-
-            this.StatusBarItemInfo.Content = errorMessage;
-
+            this.StatusBarItemInfo.Content = string.Join("; ", errors);
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Red);
         }
-        else // Jeżeli nie ma błędów
+        else
         {
             this.StatusBarItemInfo.Content = "OK";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
@@ -464,7 +481,14 @@ public partial class MainWindow
 
         bool success = PDFTools.RotateAndSave(selectedPdfFile.FilePath, rotateRight);
 
-        if (!success)
+        if (success)
+        {
+            // Po udanej operacji obrotu i zapisu musimy ręcznie przeładować widok.
+            // Ponieważ zaznaczenie się nie zmienia, zdarzenie SelectionChanged nie zadziała.
+            // To gwarantuje, że użytkownik natychmiast zobaczy zmieniony plik.
+            this.ReloadPdfView(selectedPdfFile);
+        }
+        else
         {
             MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
 
