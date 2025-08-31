@@ -7,9 +7,11 @@
 
 namespace PDF_Inspektor;
 
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -29,6 +31,9 @@ public partial class MainWindow
 
     // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
     private readonly NaturalStringComparer _naturalComparer = new();
+
+    // Słownik do zarządzania timerami dla zdarzenia FileWatcher_Changed. Używamy ConcurrentDictionary, ponieważ jest bezpieczny dla wątków.
+    private readonly ConcurrentDictionary<string, Timer> _changedFileTimers = new();
 
     // Przechowuje strumień PDF w pamięci
     private MemoryStream? _pdfStream;
@@ -75,10 +80,10 @@ public partial class MainWindow
         this.Height = this._appSettings.WindowHeight;
 
         // Upewnij się, że okno jest widoczne na ekranie
-        this.EnsureWindowIsOnScreen();
+        Tools.EnsureWindowIsOnScreen(this);
 
         // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
-        foreach (var tool in this._appSettings.Tools)
+        foreach (ExternalTool tool in this._appSettings.Tools)
         {
             Tools.EnsureAndUnpackTool(tool);
         }
@@ -96,6 +101,12 @@ public partial class MainWindow
 
         this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
         this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
+
+        // Upewnij się, że wszystkie timery są zwolnione
+        foreach (Timer timer in this._changedFileTimers.Values)
+        {
+            timer.Dispose();
+        }
     }
 
     // Obsługa zmiany rozmiaru okna
@@ -200,7 +211,7 @@ public partial class MainWindow
         if (this.PdfFiles.Count > 0)
         {
             // Pobierz unikalne katalogi z listy plików PDF
-            List<string> directoriesList = this.PdfFiles.Select(p => p.DirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Distinct().ToList();
+            List<string> directoriesList = [.. this.PdfFiles.Select(p => p.DirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Distinct()];
 
             // Ustaw FileSystemWatcher tylko wtedy, gdy jest dokładnie jeden unikalny katalog
             if (directoriesList.Count == 1)
@@ -235,11 +246,19 @@ public partial class MainWindow
 
         // Aktualizujemy właściwość SelectedPdfFile
         this.SelectedPdfFile = selectedPdfFile;
+        this.ReloadPdfView(selectedPdfFile);
+    }
 
-        if (!File.Exists(selectedPdfFile.FilePath))
+    /// <summary>
+    /// Funkcja przeładowująca widok PdfViewer z pliku PDF.
+    /// </summary>
+    /// <param name="pdfFile"></param>
+    private void ReloadPdfView(PdfFile pdfFile)
+    {
+        if (!File.Exists(pdfFile.FilePath))
         {
             // Plik nie istnieje na dysku, usuń go z listy i zakończ.
-            this.PdfFiles.Remove(selectedPdfFile);
+            this.PdfFiles.Remove(pdfFile);
             return;
         }
 
@@ -249,7 +268,7 @@ public partial class MainWindow
             this._pdfStream?.Dispose();
 
             // 2. Otwórz plik na dysku tylko na chwilę, aby skopiować jego zawartość.
-            byte[] fileBytes = File.ReadAllBytes(selectedPdfFile.FilePath);
+            byte[] fileBytes = File.ReadAllBytes(pdfFile.FilePath);
 
             // 3. Utwórz nowy strumień w pamięci na podstawie wczytanych bajtów.
             this._pdfStream = new MemoryStream(fileBytes);
@@ -257,14 +276,11 @@ public partial class MainWindow
             // 4. Załaduj dokument do PdfViewer ze strumienia w pamięci.
             //    Plik na dysku jest już wolny!
             this.PdfViewer.Load(this._pdfStream);
-
-            // =========================================================================
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Błąd podczas ładowania pliku do pamięci: {ex.Message}");
-
-            MessageBox.Show($"Nie udało się załadować pliku: {selectedPdfFile.FileName}\n\n{ex.Message}", "Błąd ładowania", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"Nie udało się załadować pliku: {pdfFile.FileName}\n\n{ex.Message}", "Błąd ładowania", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             // W razie błędu wyczyść podgląd
             this._pdfStream?.Dispose();
@@ -285,9 +301,9 @@ public partial class MainWindow
         // Ustawienie trybu kursora na "Ręka"
         this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
 
-        (int dpiX, int dpiY) dpi = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+        (int dpiX, int dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
 
-        this.StatusBarItemMain.Background = Math.Abs(dpi.dpiX - 300) <= 1 && Math.Abs(dpi.dpiY - 300) <= 1
+        this.StatusBarItemMain.Background = Math.Abs(dpiX - 300) <= 1 && Math.Abs(dpiY - 300) <= 1
             ? new SolidColorBrush(Color.FromArgb(0, 255, 255, 255))
             : new SolidColorBrush(Colors.Red);
 
@@ -305,7 +321,7 @@ public partial class MainWindow
                     _ => throw new NotImplementedException()
                 };
 
-                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpi.dpiX} x {dpi.dpiY} | Obrót: {rotation}";
+                this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX} x {dpiY} | Obrót: {rotation}";
             }
             else
             {
@@ -418,7 +434,13 @@ public partial class MainWindow
         }
 
         // Znajdź narzędzie w konfiguracji
-        ExternalTool tool = this._appSettings.Tools.First(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+        ExternalTool? tool = this._appSettings.Tools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+
+        if (tool == null)
+        {
+            MessageBox.Show($"Nie znaleziono konfiguracji dla narzędzia '{toolName}' w pliku ustawień.", "Błąd konfiguracji", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
 
         // Uruchom proces
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
@@ -506,6 +528,7 @@ public partial class MainWindow
             try
             {
                 PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+
                 if (fileToRemove == null)
                 {
                     return;
@@ -555,6 +578,7 @@ public partial class MainWindow
             try
             {
                 PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
+
                 if (fileToRename == null)
                 {
                     return;
@@ -587,85 +611,78 @@ public partial class MainWindow
     // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
     private void FileWatcher_Changed(object sender, FileSystemEventArgs e)
     {
+        // Sprawdź, czy istnieje już timer dla tego pliku.
+        if (this._changedFileTimers.TryGetValue(e.FullPath, out Timer? existingTimer))
+        {
+            // Jeśli tak, zresetuj go, aby odroczyć wykonanie.
+            existingTimer.Change(500, Timeout.Infinite);
+        }
+        else
+        {
+            // Jeśli nie, utwórz nowy timer, który wykona się raz po 500 ms.
+            Timer newTimer = new(this.OnFileChangedTimerCallback, e.FullPath, 500, Timeout.Infinite);
+            this._changedFileTimers[e.FullPath] = newTimer;
+        }
+    }
+
+    /// <summary>
+    /// Metoda wywoływana przez timer po upływie czasu od ostatniej zmiany pliku.
+    /// </summary>
+    private void OnFileChangedTimerCallback(object? state)
+    {
+        if (state is not string fullPath)
+        {
+            return;
+        }
+
+        // Usuń i zniszcz timer
+        if (this._changedFileTimers.TryRemove(fullPath, out Timer? timer))
+        {
+            timer.Dispose();
+        }
+
+        // Wykonaj aktualizację w wątku UI
         this.Dispatcher.Invoke(() =>
         {
             try
             {
-                // Czekamy chwilę, aby operacja zapisu pliku mogła się w pełni zakończyć.
-                Thread.Sleep(200);
-
-                if (!File.Exists(e.FullPath))
+                if (!File.Exists(fullPath))
                 {
                     return;
                 }
 
-                FileInfo fileInfo = new(e.FullPath);
+                FileInfo fileInfo = new(fullPath);
                 long fileSize = fileInfo.Length;
-
                 DateTime lastWriteTime = fileInfo.LastWriteTime;
 
-                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
+                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+
+                // Sprawdzamy, czy aktualizacja jest faktycznie potrzebna
                 if (fileToUpdate != null && (fileToUpdate.FileSize != fileSize || fileToUpdate.LastWriteTime != lastWriteTime))
                 {
-                    Debug.WriteLine($"FileWatcher_Changed => Znaleziono zmodyfikowany plik: {e.FullPath}!");
+                    Debug.WriteLine($"FileWatcher_Changed (Timer) => Aktualizacja pliku: {fullPath}!");
 
                     fileToUpdate.FileSize = fileSize;
                     fileToUpdate.LastWriteTime = lastWriteTime;
 
                     if (this.SelectedPdfFile == fileToUpdate)
                     {
-                        this.PdfViewer.Load(fileToUpdate.FilePath);
+                        // Ponownie załaduj podgląd, jeśli zmieniony plik jest zaznaczony
+                        this.ReloadPdfView(fileToUpdate);
                     }
 
                     this.FocusAndScrollToListBoxItem(fileToUpdate);
                 }
             }
+            catch (IOException ex)
+            {
+                Debug.WriteLine($"Błąd I/O podczas aktualizacji pliku (Timer): {fullPath}. Błąd: {ex.Message}");
+            }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Błąd w FileWatcher_Changed: {ex.Message}");
+                Debug.WriteLine($"Nieoczekiwany błąd w OnFileChangedTimerCallback: {ex.Message}");
             }
         });
-    }
-
-    // Funkcja zapewniająca, że okno jest widoczne na ekranie
-    private void EnsureWindowIsOnScreen()
-    {
-        // Pobierz szerokość i wysokość okna
-        double width = this.Width;
-        double height = this.Height;
-
-        // Przekształć współrzędne WPF na współrzędne ekranu
-        int x = (int)this.Left;
-        int y = (int)this.Top;
-
-        // Sprawdź każdy ekran
-        bool isOnScreen = false;
-
-        // Przeszukaj wszystkie ekrany, aby sprawdzić, czy okno jest widoczne na którymkolwiek z nich
-        foreach (Screen screen in Screen.AllScreens)
-        {
-            Rectangle area = screen.WorkingArea;
-
-            if (x + width > area.Left && x < area.Right && y + height > area.Top && y < area.Bottom)
-            {
-                isOnScreen = true;
-
-                break;
-            }
-        }
-
-        // Jeśli okno nie jest widoczne na żadnym ekranie – ustaw domyślnie na środek ekranu głównego
-        if (!isOnScreen)
-        {
-            if (Screen.PrimaryScreen != null) // Sprawdź, czy ekran główny istnieje
-            {
-                Rectangle primary = Screen.PrimaryScreen.WorkingArea;
-
-                // Ustaw okno na środek ekranu głównego
-                this.Left = primary.Left + ((primary.Width - width) / 2);
-                this.Top = primary.Top + ((primary.Height - height) / 2);
-            }
-        }
     }
 
     // Obsługa przycisku "Usuń"

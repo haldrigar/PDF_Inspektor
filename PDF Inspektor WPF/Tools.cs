@@ -1,14 +1,65 @@
-﻿using System.Diagnostics;
+﻿// ====================================================================================================
+// <copyright file="Tools.cs" company="Grzegorz Gogolewski">
+// Copyright (c) Grzegorz Gogolewski. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// </copyright>
+// ====================================================================================================
+
+namespace PDF_Inspektor;
+
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Windows;
 
 using MessageBox = System.Windows.MessageBox;
+using Window = System.Windows.Window;
 
-namespace PDF_Inspektor;
-
+/// <summary>
+/// Klasa narzędziowa zawierająca metody pomocnicze.
+/// </summary>
 internal static class Tools
 {
+    /// <summary>
+    /// Sprawdza, czy okno jest widoczne na którymkolwiek z ekranów i w razie potrzeby przesuwa je na środek ekranu głównego.
+    /// </summary>
+    /// <param name="window">Okno do sprawdzenia.</param>
+    public static void EnsureWindowIsOnScreen(Window window)
+    {
+        double width = window.Width;
+        double height = window.Height;
+        double x = window.Left;
+        double y = window.Top;
+
+        bool isOnScreen = false;
+
+        // Przeszukaj wszystkie ekrany, aby sprawdzić, czy okno jest widoczne na którymkolwiek z nich
+        foreach (Screen screen in Screen.AllScreens)
+        {
+            Rectangle area = screen.WorkingArea;
+
+            // Sprawdź, czy jakakolwiek część okna jest widoczna na ekranie
+            if (x < area.Right && x + width > area.Left && y < area.Bottom && y + height > area.Top)
+            {
+                isOnScreen = true;
+                break;
+            }
+        }
+
+        // Jeśli okno nie jest widoczne na żadnym ekranie – ustaw domyślnie na środek ekranu głównego
+        if (!isOnScreen)
+        {
+            if (Screen.PrimaryScreen != null) // Sprawdź, czy ekran główny istnieje
+            {
+                Rectangle primary = Screen.PrimaryScreen.WorkingArea;
+
+                // Ustaw okno na środek ekranu głównego
+                window.Left = primary.Left + ((primary.Width - width) / 2);
+                window.Top = primary.Top + ((primary.Height - height) / 2);
+            }
+        }
+    }
+
     /// <summary>
     /// Uruchamia zewnętrzny proces dla podanego pliku.
     /// </summary>
