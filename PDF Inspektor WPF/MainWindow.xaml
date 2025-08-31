@@ -133,8 +133,8 @@
                     Grid.Column="1"
                     ToolTip="LEWY PRZYCISK - zgodnie ze wskazówkami zegara, PRAWY PRZYCISK - przeciwnie do wskazówek zegara"
                     Click="ButtonRotate_OnClick"
-                    Margin="5,5,5,5"
-                    MouseRightButtonDown="ButtonRotate_OnClick" Background="#FFC6ECBE"/>
+                    PreviewMouseRightButtonUp="ButtonRotate_OnClick"
+                    Margin="5,5,5,5" Background="#FFC6ECBE"/>
 
                 <Button 
                     x:Name="ButtonDelete" 

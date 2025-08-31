@@ -335,7 +335,7 @@ public partial class MainWindow
     // Obsługa przycisków obrotu
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
-        bool rotateRight = e.RoutedEvent.Name == "Click"; // Przycisk "Obróć w prawo" ma zdarzenie "Click" a "Obróć w lewo" ma zdarzenie inne
+        bool rotateRight = e is not MouseButtonEventArgs { ChangedButton: MouseButton.Right };
 
         this.RotateAndSave(rotateRight);
 
@@ -486,43 +486,26 @@ public partial class MainWindow
             {
                 this.StatusBarItemInfo.Content = $"Wykryto nowy plik: {e.Name}...";
 
-                // Synchronicznie poczekaj, aż plik będzie gotowy.
                 if (!Tools.WaitForFile(e.FullPath))
                 {
                     this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {e.Name}";
                     return;
                 }
 
-                // Sprawdzamy, czy plik już istnieje na liście (zapobiega duplikatom).
                 if (this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
                 {
                     return;
                 }
 
                 Debug.WriteLine($"FileWatcher_Created => Znaleziono nowy plik: {e.FullPath}!");
-
                 var fileToAdd = new PdfFile(e.FullPath);
-
-                // Znajdź indeks, pod którym należy wstawić nowy plik, aby zachować porządek.
-                int insertIndex = 0;
-
-                while (insertIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[insertIndex].FilePath, fileToAdd.FilePath) < 0)
-                {
-                    insertIndex++;
-                }
-
-                // Wstaw plik w odpowiednie miejsce.
-                this.PdfFiles.Insert(insertIndex, fileToAdd);
-
-                // Ustawienie zaznaczenia na nowo dodany plik i przewinięcie do niego.
+                this.AddAndSortFile(fileToAdd); // <-- Użycie nowej metody
                 this.FocusAndScrollToListBoxItem(fileToAdd);
-
                 this.StatusBarItemInfo.Content = $"Dodano: {e.Name}";
             }
             catch (Exception ex)
             {
                 this.StatusBarItemInfo.Content = $"Błąd podczas dodawania pliku: {e.Name}";
-
                 Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Created: {ex.Message}");
             }
         });
@@ -586,27 +569,17 @@ public partial class MainWindow
             try
             {
                 PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
-
                 if (fileToRename == null)
                 {
                     return;
                 }
 
                 Debug.WriteLine($"FileWatcher_Renamed => Zmieniono nazwę pliku na: {e.FullPath}!");
-
                 this.PdfFiles.Remove(fileToRename);
-
                 fileToRename.FilePath = e.FullPath;
                 fileToRename.FileName = Path.GetFileName(e.FullPath);
                 fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
-
-                int newIndex = 0;
-                while (newIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[newIndex].FilePath, fileToRename.FilePath) < 0)
-                {
-                    newIndex++;
-                }
-
-                this.PdfFiles.Insert(newIndex, fileToRename);
+                this.AddAndSortFile(fileToRename); // <-- Użycie nowej metody
                 this.FocusAndScrollToListBoxItem(fileToRename);
             }
             catch (Exception ex)
@@ -689,6 +662,22 @@ public partial class MainWindow
                 Debug.WriteLine($"Nieoczekiwany błąd w OnFileChangedTimerCallback: {ex.Message}");
             }
         });
+    }
+
+    /// <summary>
+    /// Dodaje plik do kolekcji PdfFiles, zachowując sortowanie naturalne.
+    /// </summary>
+    /// <param name="fileToAdd">Plik do dodania.</param>
+    private void AddAndSortFile(PdfFile fileToAdd)
+    {
+        int insertIndex = 0;
+
+        while (insertIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[insertIndex].FilePath, fileToAdd.FilePath) < 0)
+        {
+            insertIndex++;
+        }
+
+        this.PdfFiles.Insert(insertIndex, fileToAdd);
     }
 
     // Obsługa przycisku "Usuń"
