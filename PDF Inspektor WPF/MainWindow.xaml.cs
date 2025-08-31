@@ -467,6 +467,11 @@ public partial class MainWindow
 
             e.Handled = true;
         }
+        else if (e.Key == Key.F2)
+        {
+            this.RenameSelectedFile();
+            e.Handled = true;
+        }
     }
 
     // Funkcja obracająca stronę i zapisująca zmiany
@@ -740,10 +745,9 @@ public partial class MainWindow
                 {
                     this.ReloadPdfView(fileToUpdate);
                 }
-                else // Jeśli nie jest zaznaczony, ustaw fokus na ten plik, aby użytkownik zobaczył zmianę.
-                {
-                    this.FocusAndScrollToListBoxItem(fileToUpdate);
-                }
+
+                // Ustaw fokus na zaktualizowany plik
+                this.FocusAndScrollToListBoxItem(fileToUpdate);
             }
             catch (IOException ex)
             {
@@ -831,5 +835,50 @@ public partial class MainWindow
                 }
             },
             System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    // Obsługa zmiany nazwy pliku
+    private void RenameSelectedFile()
+    {
+        if (this.ListBoxFiles.SelectedItems.Count != 1 || this.SelectedPdfFile == null)
+        {
+            this.StatusBarItemInfo.Content = "Zmiana nazwy wymaga zaznaczenia jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+            return;
+        }
+
+        PdfFile fileToRename = this.SelectedPdfFile;
+        string originalFileName = fileToRename.FileName;
+
+        // Utwórz i pokaż okno dialogowe
+        RenameWindow dialog = new(originalFileName)
+        {
+            Owner = this, // Ustaw właściciela, aby okno pojawiło się na środku aplikacji
+        };
+
+        // Jeśli użytkownik kliknął "OK"
+        if (dialog.ShowDialog() == true)
+        {
+            string newFileName = dialog.NewFileName.Trim();
+
+            // Walidacja nowej nazwy
+            if (string.IsNullOrWhiteSpace(newFileName) || newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || newFileName == originalFileName)
+            {
+                return; // Nazwa nieprawidłowa lub się nie zmieniła
+            }
+
+            string newFilePath = Path.Combine(fileToRename.DirectoryName, newFileName);
+
+            try
+            {
+                // Zmień nazwę pliku na dysku.
+                // FileWatcher wykryje zmianę i sam zaktualizuje listę.
+                File.Move(fileToRename.FilePath, newFilePath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się zmienić nazwy pliku.\nBłąd: {ex.Message}", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }
