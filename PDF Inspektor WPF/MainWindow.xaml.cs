@@ -40,12 +40,6 @@ public partial class MainWindow
     // Monitoruje zmiany w katalogu
     private FileSystemWatcher _fileWatcher = new();
 
-    // Flaga wskazująca, że wracamy z zewnętrznego narzędzia.
-    private bool _isReturningFromExternalTool = false;
-
-    // Przechowuje ścieżkę do ostatnio edytowanego pliku.
-    private string? _lastEditedFilePath;
-
     /// <summary>
     /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
     /// </summary>
@@ -75,27 +69,6 @@ public partial class MainWindow
     /// Pobiera lub ustawia aktualnie zaznaczony plik PDF w interfejsie użytkownika.
     /// </summary>
     public PdfFile? SelectedPdfFile { get; set; }
-
-    // Obsługuje zdarzenie aktywacji okna, aby przywrócić fokus po powrocie z zewnętrznego narzędzia.
-    private void MainWindow_Activated(object? sender, EventArgs e)
-    {
-        // Sprawdź, czy wracamy z zewnętrznego narzędzia i czy mamy zapisaną ścieżkę.
-        if (this._isReturningFromExternalTool && !string.IsNullOrEmpty(this._lastEditedFilePath))
-        {
-            // Znajdź plik na liście na podstawie zapisanej ścieżki.
-            PdfFile? fileToFocus = this.PdfFiles.FirstOrDefault(f => f.FilePath.Equals(this._lastEditedFilePath, StringComparison.OrdinalIgnoreCase));
-
-            if (fileToFocus != null)
-            {
-                Debug.WriteLine($"Okno aktywowane po edycji. Przywracanie fokusu na: {fileToFocus.FileName}");
-                this.FocusAndScrollToListBoxItem(fileToFocus);
-            }
-
-            // Zresetuj flagę i ścieżkę, aby ta logika nie wykonała się ponownie przy następnej aktywacji okna.
-            this._isReturningFromExternalTool = false;
-            this._lastEditedFilePath = null;
-        }
-    }
 
     // Funkcje obsługująca uruchomienie okna
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -317,14 +290,9 @@ public partial class MainWindow
     // Obsługa zdarzenia DocumentLoaded kontrolki PdfViewer
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
     {
-        this.PdfViewer.ZoomMode = ZoomMode.FitPage; // Ustawienie trybu powiększenia na "Dopasuj stronę"
-
-        // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru, bo
-        // po każdym załadowaniu dokumentu PdfViewer ustawia rozmiar na wielkość obrazu
+        this.PdfViewer.ZoomMode = ZoomMode.FitPage;
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
-
-        // Ustawienie trybu kursora na "Ręka"
         this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
 
         (int dpiX, int dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
@@ -337,7 +305,6 @@ public partial class MainWindow
         {
             if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
             {
-                // Pobierz obrót pierwszej strony
                 int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
                 {
                     PdfPageRotateAngle.RotateAngle0 => 0,
@@ -346,20 +313,22 @@ public partial class MainWindow
                     PdfPageRotateAngle.RotateAngle270 => 270,
                     _ => throw new NotImplementedException()
                 };
-
                 this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX} x {dpiY} | Obrót: {rotation}";
             }
             else
             {
                 this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
             }
+
+            // === NOWA, KLUCZOWA LINIA (TWÓJ POMYSŁ!) ===
+            // Po każdym załadowaniu podglądu, upewnij się, że fokus jest na właściwym elemencie listy.
+            this.FocusAndScrollToListBoxItem(selectedPdfFile);
         }
         else
         {
             this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
         }
 
-        // Zresetuj kursor do domyślnego
         Mouse.OverrideCursor = null;
     }
 
@@ -452,10 +421,9 @@ public partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
-            return; // Nic nie jest zaznaczone
+            return;
         }
 
-        // Znajdź narzędzie w konfiguracji
         ExternalTool? tool = this._appSettings.Tools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
         if (tool == null)
         {
@@ -463,15 +431,29 @@ public partial class MainWindow
             return;
         }
 
-        // === NOWA, UPROSZCZONA LOGIKA ===
-        // Ustaw flagę i zapisz ścieżkę. Fokus zostanie przywrócony w zdarzeniu 'Activated'.
-        this._isReturningFromExternalTool = true;
-        this._lastEditedFilePath = selectedPdfFile.FilePath;
-        // ================================
-
-        // Uruchom proces. Nie przekazujemy już żadnej akcji zwrotnej.
+        string editedFilePath = selectedPdfFile.FilePath;
+        DateTime lastWriteTimeBeforeEdit = selectedPdfFile.LastWriteTime; // Zapamiętaj czas modyfikacji
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
-        Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
+
+        Tools.StartExternalProcess(
+            executablePath,
+            editedFilePath,
+            () =>
+            {
+                this.Dispatcher.InvokeAsync(() =>
+                    {
+                        var fileInfo = new FileInfo(editedFilePath);
+                        fileInfo.Refresh();
+
+                        // Jeśli plik NIE został zmodyfikowany, przywróć fokus ręcznie.
+                        // Jeśli został, DocumentLoaded zrobi to za nas.
+                        if (fileInfo.Exists && fileInfo.LastWriteTime == lastWriteTimeBeforeEdit)
+                        {
+                            Debug.WriteLine("Plik niezmodyfikowany. Ręczne przywracanie fokusu.");
+                            this.FocusAndScrollToListBoxItem(selectedPdfFile);
+                        }
+                    });
+            });
     }
 
     // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF

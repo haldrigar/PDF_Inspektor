@@ -61,11 +61,12 @@ internal static class Tools
     }
 
     /// <summary>
-    /// Uruchamia zewnętrzny proces dla podanego pliku.
+    /// Uruchamia zewnętrzny proces dla podanego pliku i wykonuje akcję po jego zakończeniu.
     /// </summary>
     /// <param name="executablePath">Pełna ścieżka do pliku wykonywalnego narzędzia.</param>
     /// <param name="fileToOpen">Pełna ścieżka do pliku, który ma zostać otwarty w narzędziu.</param>
-    public static void StartExternalProcess(string executablePath, string fileToOpen)
+    /// <param name="onProcessExited">Akcja do wykonania po zamknięciu procesu. Może być null.</param>
+    public static void StartExternalProcess(string executablePath, string fileToOpen, Action? onProcessExited = null)
     {
         if (!File.Exists(executablePath))
         {
@@ -81,16 +82,15 @@ internal static class Tools
 
         try
         {
-            // Użycie cudzysłowów wokół ścieżki pliku zapewnia obsługę spacji w nazwach.
             Process process = new()
             {
                 StartInfo = new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = false },
                 EnableRaisingEvents = true,
             };
 
-            // Po prostu zwalniamy zasoby po zakończeniu procesu.
             process.Exited += (_, _) =>
             {
+                onProcessExited?.Invoke();
                 process.Dispose();
             };
 
