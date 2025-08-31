@@ -44,6 +44,10 @@ internal class AppSettings
     // Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
     [JsonIgnore]
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    /// <summary>
+    /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
+    /// </summary>
+    public string LastUsedDirectory { get; set; } = string.Empty;
 
     /// <summary>
     /// Pobiera lub ustawia klucz licencyjny Syncfusion.

@@ -41,7 +41,7 @@
                 IsTextSearchEnabled="False" 
                 ShowHorizontalScrollBar="False" 
                 ShowVerticalScrollBar="False"
-                DocumentLoaded="PdfViewer_DocumentLoaded" IsTextSelectionEnabled="False" MaximumZoomPercentage="800" MinimumZoomPercentage="56">
+                DocumentLoaded="PdfViewer_DocumentLoaded" IsTextSelectionEnabled="False" MaximumZoomPercentage="800" MinimumZoomPercentage="56" PreviewMouseWheel="PdfViewer_PreviewMouseWheel">
 
                 <pdfViewer:PdfViewerControl.ToolbarSettings>
 
@@ -77,7 +77,21 @@
                     SelectionChanged="ListBoxFiles_SelectionChanged"
                     DragOver="ListBoxFiles_DragOver"
                     Drop="ListBoxFiles_Drop"
-                    KeyDown="ListBoxFiles_KeyDown"/>
+                    KeyDown="ListBoxFiles_KeyDown">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Zmień nazwę..." Click="RenameMenuItem_Click"/>
+                            <Separator />
+                            <MenuItem Header="Obróć w prawo" Click="RotateRightMenuItem_Click" />
+                            <MenuItem Header="Obróć w lewo" Click="RotateLeftMenuItem_Click" />
+                            <Separator />
+                            <MenuItem Header="Kopiuj" Click="CopyMenuItem_Click" />
+                            <MenuItem Header="Wytnij" Click="CutMenuItem_Click"/>
+                            <Separator />
+                            <MenuItem Header="Usuń" Click="DeleteMenuItem_Click" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
 
                 <TextBox 
                     x:Name="TextBoxDirectory" 

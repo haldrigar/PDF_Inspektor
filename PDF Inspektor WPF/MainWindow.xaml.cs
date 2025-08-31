@@ -81,6 +81,16 @@ public partial class MainWindow
         {
             Tools.EnsureAndUnpackTool(tool);
         }
+
+        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
+        {
+            this.LoadFiles([this._appSettings.LastUsedDirectory]);
+
+            if (this.PdfFiles.Count > 0)
+            {
+                this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
+            }
+        }
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -90,6 +100,7 @@ public partial class MainWindow
         this._appSettings.WindowLeft = this.Left;
         this._appSettings.WindowWidth = this.Width;
         this._appSettings.WindowHeight = this.Height;
+        this._appSettings.LastUsedDirectory = this._fileWatcher.Path;
 
         this._appSettings.Save(); // Zapisz ustawienia
 
@@ -425,45 +436,12 @@ public partial class MainWindow
         }
         else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) // Kopiowanie plików (Ctrl+C)
         {
-            if (this.ListBoxFiles.SelectedItems.Count > 0)
-            {
-                var filePaths = new System.Collections.Specialized.StringCollection();
-                foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
-                {
-                    filePaths.Add(selectedFile.FilePath);
-                }
-
-                Clipboard.SetFileDropList(filePaths);
-
-                this.StatusBarItemInfo.Content = $"Skopiowano {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")} do schowka.";
-                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
-            }
-
+            this.CopySelectedFiles();
             e.Handled = true;
         }
         else if (e.Key == Key.X && Keyboard.Modifiers == ModifierKeys.Control) // Wycinanie plików (Ctrl+X)
         {
-            if (this.ListBoxFiles.SelectedItems.Count > 0)
-            {
-                var filePaths = new System.Collections.Specialized.StringCollection();
-                foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
-                {
-                    filePaths.Add(selectedFile.FilePath);
-                }
-
-                DataObject data = new();
-                data.SetFileDropList(filePaths);
-
-                // Wartość 2 oznacza "przenieś" (Move/Cut). Poprzednia wartość (5) była nieprawidłowa.
-                MemoryStream dropEffect = new([2, 0, 0, 0]);
-
-                data.SetData("Preferred DropEffect", dropEffect);
-
-                Clipboard.SetDataObject(data, true);
-
-                this.StatusBarItemInfo.Content = $"Wycięto {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")}. Wklej je w nowej lokalizacji.";
-                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
-            }
+            this.CutSelectedFiles();
 
             e.Handled = true;
         }
@@ -880,5 +858,142 @@ public partial class MainWindow
                 MessageBox.Show($"Nie udało się zmienić nazwy pliku.\nBłąd: {ex.Message}", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+    }
+
+    private void PdfViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (this.PdfFiles.Count == 0)
+        {
+            return;
+        }
+
+        int currentIndex = this.ListBoxFiles.SelectedIndex;
+
+        if (e.Delta < 0) // Kółko w dół
+        {
+            if (currentIndex < this.PdfFiles.Count - 1)
+            {
+                this.ListBoxFiles.SelectedIndex = currentIndex + 1;
+            }
+        }
+        else // Kółko w górę
+        {
+            if (currentIndex > 0)
+            {
+                this.ListBoxFiles.SelectedIndex = currentIndex - 1;
+            }
+        }
+
+        // Ustaw fokus i przewiń do nowego elementu
+        if (this.ListBoxFiles.SelectedItem is PdfFile selected)
+        {
+            this.FocusAndScrollToListBoxItem(selected);
+        }
+
+        e.Handled = true; // Zablokuj domyślne przewijanie/zoomowanie w podglądzie
+    }
+
+    // Obsługa kliknięcia "Zmień nazwę..." w menu kontekstowym
+    private void RenameMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // zmiana nazwy zaznaczonego pliku
+        this.RenameSelectedFile();
+    }
+
+    // Obsługa kliknięcia "Usuń" w menu kontekstowym
+    private void DeleteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // usunięcie zaznaczonych plików
+        this.ButtonDelete_Click(sender, e);
+    }
+
+    // Obsługa kliknięcia "Obróć w prawo" w menu kontekstowym
+    private void RotateRightMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element
+        if (this.ListBoxFiles.SelectedItems.Count != 1)
+        {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+            return;
+        }
+
+        // Wywołaj istniejącą metodę z odpowiednim parametrem
+        this.RotateAndSave(true); // true = obrót w prawo
+    }
+
+    // Obsługa kliknięcia "Obróć w lewo" w menu kontekstowym
+    private void RotateLeftMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element
+        if (this.ListBoxFiles.SelectedItems.Count != 1)
+        {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+            return;
+        }
+
+        // Wywołaj istniejącą metodę z odpowiednim parametrem
+        this.RotateAndSave(false); // false = obrót w lewo
+    }
+
+    // Obsługa kliknięcia "Wytnij" w menu kontekstowym
+    private void CutMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Wywołaj istniejącą, centralną metodę do wycinania plików.
+        this.CutSelectedFiles();
+    }
+
+    // Obsługa kliknięcia "Kopiuj" w menu kontekstowym
+    private void CopyMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // Wywołaj istniejącą, centralną metodę do kopiowania plików.
+        this.CopySelectedFiles();
+    }
+
+    private void CopySelectedFiles()
+    {
+        if (this.ListBoxFiles.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var filePaths = new System.Collections.Specialized.StringCollection();
+        foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
+        {
+            filePaths.Add(selectedFile.FilePath);
+        }
+
+        Clipboard.SetFileDropList(filePaths);
+
+        this.StatusBarItemInfo.Content = $"Skopiowano {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")} do schowka.";
+        this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
+    }
+
+    private void CutSelectedFiles()
+    {
+        if (this.ListBoxFiles.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var filePaths = new System.Collections.Specialized.StringCollection();
+
+        foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
+        {
+            filePaths.Add(selectedFile.FilePath);
+        }
+
+        DataObject data = new();
+        data.SetFileDropList(filePaths);
+
+        // Wartość 2 oznacza "przenieś" (Move/Cut).
+        MemoryStream dropEffect = new([2, 0, 0, 0]);
+        data.SetData("Preferred DropEffect", dropEffect);
+
+        Clipboard.SetDataObject(data, true);
+
+        this.StatusBarItemInfo.Content = $"Wycięto {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")}.";
+        this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
     }
 }
