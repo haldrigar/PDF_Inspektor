@@ -40,6 +40,12 @@ public partial class MainWindow
     // Monitoruje zmiany w katalogu
     private FileSystemWatcher _fileWatcher = new();
 
+    // Flaga wskazująca, że wracamy z zewnętrznego narzędzia.
+    private bool _isReturningFromExternalTool = false;
+
+    // Przechowuje ścieżkę do ostatnio edytowanego pliku.
+    private string? _lastEditedFilePath;
+
     /// <summary>
     /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
     /// </summary>
@@ -69,6 +75,27 @@ public partial class MainWindow
     /// Pobiera lub ustawia aktualnie zaznaczony plik PDF w interfejsie użytkownika.
     /// </summary>
     public PdfFile? SelectedPdfFile { get; set; }
+
+    // Obsługuje zdarzenie aktywacji okna, aby przywrócić fokus po powrocie z zewnętrznego narzędzia.
+    private void MainWindow_Activated(object? sender, EventArgs e)
+    {
+        // Sprawdź, czy wracamy z zewnętrznego narzędzia i czy mamy zapisaną ścieżkę.
+        if (this._isReturningFromExternalTool && !string.IsNullOrEmpty(this._lastEditedFilePath))
+        {
+            // Znajdź plik na liście na podstawie zapisanej ścieżki.
+            PdfFile? fileToFocus = this.PdfFiles.FirstOrDefault(f => f.FilePath.Equals(this._lastEditedFilePath, StringComparison.OrdinalIgnoreCase));
+
+            if (fileToFocus != null)
+            {
+                Debug.WriteLine($"Okno aktywowane po edycji. Przywracanie fokusu na: {fileToFocus.FileName}");
+                this.FocusAndScrollToListBoxItem(fileToFocus);
+            }
+
+            // Zresetuj flagę i ścieżkę, aby ta logika nie wykonała się ponownie przy następnej aktywacji okna.
+            this._isReturningFromExternalTool = false;
+            this._lastEditedFilePath = null;
+        }
+    }
 
     // Funkcje obsługująca uruchomienie okna
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -430,38 +457,21 @@ public partial class MainWindow
 
         // Znajdź narzędzie w konfiguracji
         ExternalTool? tool = this._appSettings.Tools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
-
         if (tool == null)
         {
             MessageBox.Show($"Nie znaleziono konfiguracji dla narzędzia '{toolName}' w pliku ustawień.", "Błąd konfiguracji", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        // Zapamiętaj ścieżkę do edytowanego pliku. To jest klucz do rozwiązania problemu.
-        string editedFilePath = selectedPdfFile.FilePath;
+        // === NOWA, UPROSZCZONA LOGIKA ===
+        // Ustaw flagę i zapisz ścieżkę. Fokus zostanie przywrócony w zdarzeniu 'Activated'.
+        this._isReturningFromExternalTool = true;
+        this._lastEditedFilePath = selectedPdfFile.FilePath;
+        // ================================
 
-        // Uruchom proces i przekaż akcję do wykonania po jego zamknięciu
+        // Uruchom proces. Nie przekazujemy już żadnej akcji zwrotnej.
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
-
-        Tools.StartExternalProcess(
-            executablePath,
-            editedFilePath,
-            () =>
-            {
-                // Ta część kodu wykona się w tle, gdy proces się zakończy.
-                this.Dispatcher.Invoke(() =>
-                {
-                    // Po zamknięciu procesu, znajdź aktualny obiekt pliku w kolekcji na podstawie zapamiętanej ścieżki.
-                    PdfFile? fileToFocus = this.PdfFiles.FirstOrDefault(f => f.FilePath.Equals(editedFilePath, StringComparison.OrdinalIgnoreCase));
-
-                    // Jeśli plik nadal istnieje na liście (nie został np. usunięty lub przemianowany na coś innego), przywróć na nim fokus.
-                    if (fileToFocus != null)
-                    {
-                        Debug.WriteLine($"Proces zakończony. Przywracanie fokusu na: {fileToFocus.FileName}");
-                        this.FocusAndScrollToListBoxItem(fileToFocus);
-                    }
-                });
-            });
+        Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
     }
 
     // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF
