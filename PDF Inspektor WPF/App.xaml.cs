@@ -37,7 +37,10 @@ public partial class App
 
         if (string.IsNullOrEmpty(settings.SyncfusionLicenseKey) || settings.SyncfusionLicenseKey == "SyncfusionLicenseKey")
         {
-            MessageBox.Show("Klucz licencyjny Syncfusion nie został skonfigurowany w pliku appsettings.json.", "Brak klucza licencyjnego", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Klucz licencyjny Syncfusion nie został skonfigurowany w pliku appsettings.json. Aplikacja zostanie zamknięta.", "Brak klucza licencyjnego", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            // Zakończ aplikację, jeśli klucz jest nieprawidłowy
+            Application.Current.Shutdown();
 
             return;
         }

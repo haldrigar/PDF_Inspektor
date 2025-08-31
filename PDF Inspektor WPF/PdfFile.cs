@@ -14,14 +14,29 @@ using System.Runtime.CompilerServices;
 /// <summary>
 /// Klasa reprezentująca plik PDF.
 /// </summary>
-/// <param name="filePath">Ścieżka do pliku PDF.</param>
-public sealed class PdfFile(string filePath) : INotifyPropertyChanged
+public sealed class PdfFile : INotifyPropertyChanged
 {
-    private string _filePath = filePath;
-    private string _fileName = Path.GetFileName(filePath);
-    private long _fileSize = new FileInfo(filePath).Length;
-    private DateTime _lastWriteTime = new FileInfo(filePath).LastWriteTime;
-    private string _directoryName = Path.GetDirectoryName(filePath) ?? string.Empty;
+    private string _filePath;
+    private string _fileName;
+    private long _fileSize;
+    private DateTime _lastWriteTime;
+    private string _directoryName;
+
+    /// <summary>
+    /// Inicjalizuje nową instancję klasy <see cref="PdfFile"/>.
+    /// </summary>
+    /// <param name="filePath">Ścieżka do pliku PDF.</param>
+    public PdfFile(string filePath)
+    {
+        // Tworzymy obiekt FileInfo tylko raz i używamy go do zainicjowania wszystkich pól.
+        FileInfo fileInfo = new(filePath);
+
+        this._filePath = filePath;
+        this._fileName = fileInfo.Name;
+        this._fileSize = fileInfo.Length;
+        this._lastWriteTime = fileInfo.LastWriteTime;
+        this._directoryName = fileInfo.DirectoryName ?? string.Empty;
+    }
 
     /// <summary>
     /// Zdarzenie wywoływane, gdy właściwość ulegnie zmianie.
@@ -47,7 +62,7 @@ public sealed class PdfFile(string filePath) : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Pobiera lub ustawia rozmiar pliku PDF w kilobajtach (KB).
+    /// Pobiera lub ustawia rozmiar pliku PDF w bajtach.
     /// </summary>
     public long FileSize
     {
@@ -99,9 +114,7 @@ public sealed class PdfFile(string filePath) : INotifyPropertyChanged
         }
 
         field = value;
-
         this.OnPropertyChanged(propertyName);
-
         return true;
     }
 }
