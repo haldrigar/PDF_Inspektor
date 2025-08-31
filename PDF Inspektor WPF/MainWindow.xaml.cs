@@ -398,45 +398,8 @@ public partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            string filePath = selectedPdfFile.FilePath;
-
-            // Sprawdzenie, czy plik istnieje
-            if (!File.Exists(filePath))
-            {
-                MessageBox.Show($"Plik PDF nie istnieje: {filePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                return;
-            }
-
-            string irfanViewPath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe"); // Ścieżka do IrfanView
-
-            // Sprawdzenie, czy IrfanView istnieje
-            if (!File.Exists(irfanViewPath))
-            {
-                MessageBox.Show($"Nie znaleziono IrfanView: {irfanViewPath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                return;
-            }
-
-            try
-            {
-                Process process = new()
-                {
-                    StartInfo = new ProcessStartInfo(irfanViewPath, $"\"{filePath}\"") { UseShellExecute = false },
-                    EnableRaisingEvents = true, // Umożliwia nasłuchiwanie zdarzenia Exited
-                };
-
-                process.Exited += (_, _) =>
-                {
-                    process.Dispose();
-                };
-
-                process.Start();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Nie udało się uruchomić IrfanView.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            string executablePath = Path.Combine(AppContext.BaseDirectory, "Tools", "IrfanView", "IrfanViewPortable.exe");
+            Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
         }
     }
 
@@ -444,45 +407,8 @@ public partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            string filePath = selectedPdfFile.FilePath;
-
-            // Sprawdzenie, czy plik istnieje
-            if (!File.Exists(filePath))
-            {
-                MessageBox.Show($"Plik PDF nie istnieje: {filePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                return;
-            }
-
-            string gimpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe"); // Ścieżka do GIMP
-
-            // Sprawdzenie, czy GIMP istnieje
-            if (!File.Exists(gimpPath))
-            {
-                MessageBox.Show($"Nie znaleziono GIMP: {gimpPath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                return;
-            }
-
-            try
-            {
-                Process process = new()
-                {
-                    StartInfo = new ProcessStartInfo(gimpPath, $"\"{filePath}\"") { UseShellExecute = false },
-                    EnableRaisingEvents = true, // Umożliwia nasłuchiwanie zdarzenia Exited
-                };
-
-                process.Exited += (_, _) =>
-                {
-                    process.Dispose();
-                };
-
-                process.Start();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Nie udało się uruchomić GIMP.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            string executablePath = Path.Combine(AppContext.BaseDirectory, "Tools", "GIMP", "GIMPPortable.exe");
+            Tools.StartExternalProcess(executablePath, selectedPdfFile.FilePath);
         }
     }
 

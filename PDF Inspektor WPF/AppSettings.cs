@@ -9,6 +9,28 @@ namespace PDF_Inspektor;
 
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+
+/// <summary>
+/// Definiuje pojedyncze narzędzie zewnętrzne używane przez aplikację.
+/// </summary>
+public class ExternalTool
+{
+    /// <summary>
+    /// Pobiera lub ustawia nazwę wyświetlaną narzędzia.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Pobiera lub ustawia ścieżkę do pliku wykonywalnego.
+    /// </summary>
+    public string ExecutablePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Pobiera lub ustawia nazwę archiwum ZIP do rozpakowania.
+    /// </summary>
+    public string ZipFileName { get; set; } = string.Empty;
+}
 
 /// <summary>
 /// Zawiera informacje o ustawieniach aplikacji oraz zarządza ich zapisem i odczytem.
@@ -16,9 +38,11 @@ using System.Text.Json;
 internal class AppSettings
 {
     // Ścieżka do pliku konfiguracyjnego w katalogu bazowym aplikacji.
+    [JsonIgnore]
     private static readonly string ConfigFilePath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
 
     /// Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
+    [JsonIgnore]
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
@@ -45,6 +69,15 @@ internal class AppSettings
     /// Pobiera lub ustawia Width okna aplikacji.
     /// </summary>
     public double WindowHeight { get; set; } = 600;
+
+    /// <summary>
+    /// Pobiera lub ustawia listę skonfigurowanych narzędzi zewnętrznych.
+    /// </summary>
+    public List<ExternalTool> Tools { get; set; } =
+    [
+        new ExternalTool { Name = "IrfanView", ExecutablePath = @"Tools\IrfanView\IrfanViewPortable.exe", ZipFileName = "irfanview.zip" },
+        new ExternalTool { Name = "GIMP", ExecutablePath = @"Tools\GIMP\GIMPPortable.exe", ZipFileName = "gimp.zip" },
+    ];
 
     /// <summary>
     /// Wczytuje ustawienia z pliku JSON. Jeśli plik nie istnieje, tworzy go z domyślnymi wartościami.

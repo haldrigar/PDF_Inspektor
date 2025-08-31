@@ -10,6 +10,47 @@ namespace PDF_Inspektor;
 internal static class Tools
 {
     /// <summary>
+    /// Uruchamia zewnętrzny proces dla podanego pliku.
+    /// </summary>
+    /// <param name="executablePath">Pełna ścieżka do pliku wykonywalnego narzędzia.</param>
+    /// <param name="fileToOpen">Pełna ścieżka do pliku, który ma zostać otwarty w narzędziu.</param>
+    public static void StartExternalProcess(string executablePath, string fileToOpen)
+    {
+        if (!File.Exists(executablePath))
+        {
+            MessageBox.Show($"Nie znaleziono aplikacji: {executablePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (!File.Exists(fileToOpen))
+        {
+            MessageBox.Show($"Plik nie istnieje: {fileToOpen}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        try
+        {
+            // Użycie cudzysłowów wokół ścieżki pliku zapewnia obsługę spacji w nazwach.
+            Process process = new()
+            {
+                StartInfo = new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = false },
+                EnableRaisingEvents = true,
+            };
+
+            process.Exited += (_, _) =>
+            {
+                process.Dispose();
+            };
+
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Nie udało się uruchomić procesu dla pliku: {fileToOpen}.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
     /// Sprawdza istnienie narzędzia i rozpakowuje je z archiwum ZIP, jeśli jest to konieczne.
     /// </summary>
     public static void EnsureAndUnpackTool(string toolName, string zipFileName, string exeFileName)
