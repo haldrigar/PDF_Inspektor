@@ -7,11 +7,9 @@
 
 namespace PDF_Inspektor;
 
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -30,9 +28,6 @@ public partial class MainWindow
 
     // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
     private readonly NaturalStringComparer _naturalComparer = new();
-
-    // Słownik do zarządzania timerami dla zdarzenia FileWatcher_Changed. Używamy ConcurrentDictionary, ponieważ jest bezpieczny dla wątków.
-    private readonly ConcurrentDictionary<string, Timer> _changedFileTimers = new();
 
     // Przechowuje strumień PDF w pamięci
     private MemoryStream? _pdfStream;
@@ -100,12 +95,6 @@ public partial class MainWindow
 
         this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
         this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
-
-        // Upewnij się, że wszystkie timery są zwolnione
-        foreach (Timer timer in this._changedFileTimers.Values)
-        {
-            timer.Dispose();
-        }
     }
 
     // Obsługa zmiany rozmiaru okna
@@ -291,19 +280,40 @@ public partial class MainWindow
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
     {
         this.PdfViewer.ZoomMode = ZoomMode.FitPage;
+
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
+
         this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
+
+        // =========================================== SPRAWDZENIE BŁĘDÓW ===========================================
+        List<string> errors = []; // Lista błędów do wyświetlenia
 
         (int dpiX, int dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
 
-        this.StatusBarItemMain.Background = Math.Abs(dpiX - 300) <= 1 && Math.Abs(dpiY - 300) <= 1
-            ? new SolidColorBrush(Color.FromArgb(0, 255, 255, 255))
-            : new SolidColorBrush(Colors.Red);
+        if (Math.Abs(dpiX - 300) > 1 || Math.Abs(dpiY - 300) > 1)
+        {
+            errors.Add("BŁĄD DPI");
+        }
 
+        // Sprawdź, czy FileWatcher jest aktywny i ma poprawną ścieżkę
+        if (!string.IsNullOrEmpty(this._fileWatcher.Path) && Directory.Exists(this._fileWatcher.Path))
+        {
+            // sprawdź ilość pliku w monitorowanym katalogu
+            int totalFileCount = Directory.GetFiles(this._fileWatcher.Path, "*.pdf").Length;
+
+            if (totalFileCount != this.PdfFiles.Count)
+            {
+                errors.Add("BŁĄD ILOŚCI PLIKÓW");
+            }
+        }
+
+        // ==========================================================================================================
+
+        // Jeżeli jest zaznaczony plik
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
+            if (this.PdfViewer.LoadedDocument.Pages.Count > 0) // Sprawdź, czy dokument ma strony
             {
                 int rotation = this.PdfViewer.LoadedDocument.Pages[0].Rotation switch
                 {
@@ -317,16 +327,32 @@ public partial class MainWindow
             }
             else
             {
-                this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
+                errors.Add("PUSTY DOKUMENT");
             }
 
-            // === NOWA, KLUCZOWA LINIA (TWÓJ POMYSŁ!) ===
-            // Po każdym załadowaniu podglądu, upewnij się, że fokus jest na właściwym elemencie listy.
+            // Po każdym załadowaniu podglądu upewnij się, że fokus jest na właściwym elemencie listy.
             this.FocusAndScrollToListBoxItem(selectedPdfFile);
         }
-        else
+        else // Jeżeli nie ma zaznaczonego pliku
         {
-            this.StatusBarItemMain.Content = "Błąd ładowania dokumentu!";
+            errors.Add("BŁĄD ŁADOWANIA PLIKU");
+        }
+
+        // ------------------------------------------------------------------------------
+        // Jeżeli są błędy
+        // ------------------------------------------------------------------------------
+        if (errors.Count > 0)
+        {
+            string errorMessage = string.Join("; ", errors);
+
+            this.StatusBarItemInfo.Content = errorMessage;
+
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Red);
+        }
+        else // Jeżeli nie ma błędów
+        {
+            this.StatusBarItemInfo.Content = "OK";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
         }
 
         Mouse.OverrideCursor = null;
@@ -592,74 +618,59 @@ public partial class MainWindow
     // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
     private void FileWatcher_Changed(object sender, FileSystemEventArgs e)
     {
-        // Sprawdź, czy istnieje już timer dla tego pliku.
-        if (this._changedFileTimers.TryGetValue(e.FullPath, out Timer? existingTimer))
-        {
-            // Jeśli tak, zresetuj go, aby odroczyć wykonanie.
-            existingTimer.Change(500, Timeout.Infinite);
-        }
-        else
-        {
-            // Jeśli nie, utwórz nowy timer, który wykona się raz po 500 ms.
-            Timer newTimer = new(this.OnFileChangedTimerCallback, e.FullPath, 500, Timeout.Infinite);
-            this._changedFileTimers[e.FullPath] = newTimer;
-        }
-    }
-
-    /// <summary>
-    /// Metoda wywoływana przez timer po upływie czasu od ostatniej zmiany pliku.
-    /// </summary>
-    private void OnFileChangedTimerCallback(object? state)
-    {
-        if (state is not string fullPath)
-        {
-            return;
-        }
-
-        // Usuń i zniszcz timer
-        if (this._changedFileTimers.TryRemove(fullPath, out Timer? timer))
-        {
-            timer.Dispose();
-        }
-
         // Wykonaj aktualizację w wątku UI
         this.Dispatcher.Invoke(() =>
         {
             try
             {
-                if (!File.Exists(fullPath))
+                // Sprawdź, czy plik istnieje na dysku. Jeśli nie, nic nie rób.
+                if (!File.Exists(e.FullPath))
                 {
                     return;
                 }
 
-                FileInfo fileInfo = new(fullPath);
-                long fileSize = fileInfo.Length;
-                DateTime lastWriteTime = fileInfo.LastWriteTime;
+                // Znajdź plik na liście w aplikacji
+                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
 
-                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
-
-                // Sprawdzamy, czy aktualizacja jest faktycznie potrzebna
-                if (fileToUpdate != null && (fileToUpdate.FileSize != fileSize || fileToUpdate.LastWriteTime != lastWriteTime))
+                if (fileToUpdate == null)
                 {
-                    Debug.WriteLine($"FileWatcher_Changed (Timer) => Aktualizacja pliku: {fullPath}!");
+                    return; // Pliku nie ma na naszej liście, ignoruj
+                }
 
-                    fileToUpdate.FileSize = fileSize;
-                    fileToUpdate.LastWriteTime = lastWriteTime;
+                // Pobierz aktualne informacje o pliku z dysku
+                var fileInfo = new FileInfo(e.FullPath);
+                long newFileSize = fileInfo.Length;
+                DateTime newLastWriteTime = fileInfo.LastWriteTime;
 
-                    if (this.SelectedPdfFile == fileToUpdate)
-                    {
-                        // Ponownie załaduj podgląd, jeśli zmieniony plik jest zaznaczony
-                        this.ReloadPdfView(fileToUpdate);
-                    }
+                // KLUCZOWY WARUNEK: Sprawdź, czy zmiana nie została już przetworzona.
+                // Jeśli czas modyfikacji jest taki sam, ignorujemy to zdarzenie.
+                if (fileToUpdate.LastWriteTime >= newLastWriteTime)
+                {
+                    return;
+                }
+
+                // Mamy nową, rzeczywistą zmianę. Aktualizujemy dane.
+                Debug.WriteLine($"FileWatcher_Changed => Aktualizacja pliku: {e.FullPath}!");
+                fileToUpdate.FileSize = newFileSize;
+                fileToUpdate.LastWriteTime = newLastWriteTime; // ustawiamy nowy czas
+
+                // Jeśli zmieniony plik jest aktualnie zaznaczony, przeładuj podgląd.
+                if (this.SelectedPdfFile == fileToUpdate)
+                {
+                    this.ReloadPdfView(fileToUpdate);
+                }
+                else // Jeśli nie jest zaznaczony, ustaw fokus na ten plik, aby użytkownik zobaczył zmianę.
+                {
+                    this.FocusAndScrollToListBoxItem(fileToUpdate);
                 }
             }
             catch (IOException ex)
             {
-                Debug.WriteLine($"Błąd I/O podczas aktualizacji pliku (Timer): {fullPath}. Błąd: {ex.Message}");
+                Debug.WriteLine($"Błąd I/O podczas sprawdzania pliku: {e.FullPath}. Błąd: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Nieoczekiwany błąd w OnFileChangedTimerCallback: {ex.Message}");
+                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Changed: {ex.Message}");
             }
         });
     }

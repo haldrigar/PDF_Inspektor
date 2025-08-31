@@ -76,7 +76,7 @@
                     SelectionChanged="ListBoxFiles_SelectionChanged"
                     DragOver="ListBoxFiles_DragOver"
                     Drop="ListBoxFiles_Drop"
-                    KeyDown="ListBoxFiles_KeyDown" />
+                    KeyDown="ListBoxFiles_KeyDown" SelectionMode="Extended" />
 
                 <TextBox 
                     x:Name="TextBoxDirectory" 
@@ -166,9 +166,9 @@
                 x:Name="StatusBarItemInfo"
                 DockPanel.Dock="Right" 
                 Width="400"
-                Content="Info" 
+                Content="OK" 
                 HorizontalContentAlignment="Center" 
-                Margin="5,0,5,0"/>
+                Margin="0,0,0,0"/>
 
             <!-- Ten element wypełni pozostałą przestrzeń -->
             <StatusBarItem 
