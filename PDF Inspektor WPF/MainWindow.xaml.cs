@@ -26,6 +26,9 @@ public partial class MainWindow
     // Przechowuje ustawienia aplikacji
     private readonly AppSettings _appSettings;
 
+    // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
+    private readonly NaturalStringComparer _naturalComparer = new();
+
     // Przechowuje strumień aktualnie załadowanego pliku PDF
     private MemoryStream _selectedPdfStream = new();
 
@@ -112,6 +115,44 @@ public partial class MainWindow
         // Ustawienie szerokości i wysokości na Auto (NaN) dla responsywnego rozmiaru
         this.PdfViewer.Width = double.NaN;
         this.PdfViewer.Height = double.NaN;
+    }
+
+    /// <summary>
+    /// Obsługuje zdarzenie aktywacji okna (gdy odzyskuje fokus).
+    /// Sprawdza, czy zaznaczony plik został zmodyfikowany i w razie potrzeby go odświeża.
+    /// </summary>
+    private void Window_Activated(object sender, EventArgs e)
+    {
+        // Sprawdź, czy jakikolwiek plik jest zaznaczony
+        if (this.SelectedPdfFile is not { } selectedPdfFile)
+        {
+            return;
+        }
+
+        try
+        {
+            // Pobierz aktualne informacje o pliku z dysku
+            FileInfo fileInfo = new(selectedPdfFile.FilePath);
+
+            fileInfo.Refresh(); // Upewnij się, że dane są aktualne
+
+            // Sprawdź, czy plik istnieje i czy czas modyfikacji jest nowszy
+            if (fileInfo.Exists && fileInfo.LastWriteTime > selectedPdfFile.LastWriteTime)
+            {
+                Debug.WriteLine($"Wykryto zmianę w pliku '{selectedPdfFile.FileName}' po odzyskaniu fokusu. Przeładowuję...");
+
+                // Plik został zmieniony, więc przeładuj podgląd
+                this.LoadPdfToView(selectedPdfFile);
+            }
+
+            // Ustaw ponownie fokus na elemencie listy, aby był wyraźnie zaznaczony
+            this.FocusAndScrollToListBoxItem(selectedPdfFile);
+        }
+        catch (Exception ex)
+        {
+            // Logowanie błędu, jeśli nie można uzyskać dostępu do pliku
+            Debug.WriteLine($"Błąd podczas sprawdzania pliku w Window_Activated: {ex.Message}");
+        }
     }
 
     // Obsługa przeciągania i upuszczania plików
@@ -269,6 +310,22 @@ public partial class MainWindow
     }
 
     /// <summary>
+    /// Dodaje plik do kolekcji PdfFiles, zachowując sortowanie naturalne.
+    /// </summary>
+    /// <param name="fileToAdd">Plik do dodania.</param>
+    private void AddAndSortFile(PdfFile fileToAdd)
+    {
+        int insertIndex = 0;
+
+        while (insertIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[insertIndex].FilePath, fileToAdd.FilePath) < 0)
+        {
+            insertIndex++;
+        }
+
+        this.PdfFiles.Insert(insertIndex, fileToAdd);
+    }
+
+    /// <summary>
     /// Funkcja przeładowująca widok PdfViewer z pliku PDF.
     /// </summary>
     /// <param name="pdfFile">Plik PDF.</param>
@@ -327,6 +384,8 @@ public partial class MainWindow
             {
                 // Pobierz aktualne informacje o pliku, ponieważ mamy pewność, że istnieje i jest dostępny.
                 FileInfo fileInfo = new(selectedPdfFile.FilePath);
+
+                fileInfo.Refresh(); // Upewnij się, że dane są aktualne
 
                 selectedPdfFile.FileSize = fileInfo.Length;
                 selectedPdfFile.LastWriteTime = fileInfo.LastWriteTime;
@@ -570,6 +629,7 @@ public partial class MainWindow
             return;
         }
 
+        // Znajdź narzędzie w konfiguracji
         ExternalTool tool = this._appSettings.Tools.First(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
 
         string fileToOpen = selectedPdfFile.FilePath; // Ścieżka do pliku PDF do otwarcia
@@ -650,10 +710,12 @@ public partial class MainWindow
         {
             this.StatusBarItemInfo.Content = "Zmiana nazwy wymaga zaznaczenia jednego pliku.";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
             return;
         }
 
         PdfFile fileToRename = this.SelectedPdfFile;
+
         string originalFileName = fileToRename.FileName;
 
         // Utwórz i pokaż okno dialogowe
@@ -673,13 +735,20 @@ public partial class MainWindow
                 return; // Nazwa nieprawidłowa lub się nie zmieniła
             }
 
+            if (Path.GetExtension(newFileName) != ".pdf")
+            {
+                newFileName += ".pdf";
+            }
+
             string newFilePath = Path.Combine(fileToRename.DirectoryName, newFileName);
 
             try
             {
                 // Zmień nazwę pliku na dysku.
-                // FileWatcher wykryje zmianę i sam zaktualizuje listę.
                 File.Move(fileToRename.FilePath, newFilePath);
+
+                fileToRename.FileName = newFileName; // Zaktualizuj nazwę w obiekcie PdfFile
+                fileToRename.FilePath = newFilePath; // Zaktualizuj ścieżkę w obiekcie PdfFile
             }
             catch (Exception ex)
             {
