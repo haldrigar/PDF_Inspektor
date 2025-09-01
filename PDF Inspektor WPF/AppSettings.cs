@@ -46,7 +46,7 @@ internal class AppSettings
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
-    /// Pobiera ostatnio używany katalog do otwierania plików PDF.
+    /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
     /// </summary>
     public string LastUsedDirectory { get; set; } = string.Empty;
 

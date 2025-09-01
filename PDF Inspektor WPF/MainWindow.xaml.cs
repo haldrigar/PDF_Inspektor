@@ -8,6 +8,7 @@
 namespace PDF_Inspektor;
 
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -123,6 +124,38 @@ public partial class MainWindow
     /// </summary>
     private void Window_Activated(object sender, EventArgs e)
     {
+        bool filesWereRemoved = false;
+
+        // Używamy pętli 'for' od końca, aby bezpiecznie usuwać elementy z kolekcji.
+        for (int i = this.PdfFiles.Count - 1; i >= 0; i--)
+        {
+            PdfFile fileToCheck = this.PdfFiles[i];
+
+            if (!File.Exists(fileToCheck.FilePath))
+            {
+                // Plik nie istnieje na dysku, więc usuwamy go z listy.
+                this.PdfFiles.RemoveAt(i);
+
+                filesWereRemoved = true;
+
+                Debug.WriteLine($"Plik '{fileToCheck.FileName}' nie istnieje. Usunięto z listy.");
+            }
+        }
+
+        if (filesWereRemoved)
+        {
+            this.StatusBarItemInfo.Content = "Odświeżono listę, usunięto przeniesione pliki.";
+
+            // Jeśli po usunięciu nie ma już żadnych plików, zakończ.
+            if (this.PdfFiles.Count == 0)
+            {
+                this.PdfViewer.Unload(true);
+                this._selectedPdfStream.Dispose();
+
+                return;
+            }
+        }
+
         // Sprawdź, czy jakikolwiek plik jest zaznaczony
         if (this.SelectedPdfFile is not { } selectedPdfFile)
         {
@@ -144,14 +177,19 @@ public partial class MainWindow
                 // Plik został zmieniony, więc przeładuj podgląd
                 this.LoadPdfToView(selectedPdfFile);
             }
-
-            // Ustaw ponownie fokus na elemencie listy, aby był wyraźnie zaznaczony
-            this.FocusAndScrollToListBoxItem(selectedPdfFile);
         }
         catch (Exception ex)
         {
             // Logowanie błędu, jeśli nie można uzyskać dostępu do pliku
             Debug.WriteLine($"Błąd podczas sprawdzania pliku w Window_Activated: {ex.Message}");
+        }
+        finally
+        {
+            // Na koniec zawsze upewnij się, że zaznaczony element ma fokus.
+            if (this.SelectedPdfFile != null)
+            {
+                this.FocusAndScrollToListBoxItem(this.SelectedPdfFile);
+            }
         }
     }
 
@@ -747,8 +785,17 @@ public partial class MainWindow
                 // Zmień nazwę pliku na dysku.
                 File.Move(fileToRename.FilePath, newFilePath);
 
+                // Usuń stary obiekt z listy.
+                this.PdfFiles.Remove(fileToRename);
+
                 fileToRename.FileName = newFileName; // Zaktualizuj nazwę w obiekcie PdfFile
                 fileToRename.FilePath = newFilePath; // Zaktualizuj ścieżkę w obiekcie PdfFile
+
+                // Dodaj zaktualizowany obiekt z powrotem do listy, używając metody sortującej.
+                this.AddAndSortFile(fileToRename);
+
+                // Ustaw fokus na nowo posortowanym elemencie.
+                this.FocusAndScrollToListBoxItem(fileToRename);
             }
             catch (Exception ex)
             {
@@ -759,7 +806,6 @@ public partial class MainWindow
 
     private void PdfViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        // === NOWA POPRAWKA ===
         // Jeśli klawisz Ctrl jest wciśnięty, nie rób nic.
         // Pozwól kontrolce PdfViewer obsłużyć zdarzenie (zoomowanie).
         if (Keyboard.Modifiers == ModifierKeys.Control)
@@ -767,12 +813,12 @@ public partial class MainWindow
             return;
         }
 
-        if (this.PdfFiles.Count == 0)
+        if (this.PdfFiles.Count == 0) // Jeśli lista jest pusta, nie rób nic. nie ma co zmieniać zaznaczenia
         {
             return;
         }
 
-        int currentIndex = this.ListBoxFiles.SelectedIndex;
+        int currentIndex = this.ListBoxFiles.SelectedIndex; // Pobierz aktualny indeks zaznaczenia
 
         if (e.Delta < 0) // Kółko w dół
         {
@@ -859,12 +905,13 @@ public partial class MainWindow
 
     private void CopySelectedFiles()
     {
-        if (this.ListBoxFiles.SelectedItems.Count == 0)
+        if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
         {
             return;
         }
 
-        var filePaths = new System.Collections.Specialized.StringCollection();
+        StringCollection filePaths = [];
+
         foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
         {
             filePaths.Add(selectedFile.FilePath);
@@ -873,33 +920,38 @@ public partial class MainWindow
         Clipboard.SetFileDropList(filePaths);
 
         this.StatusBarItemInfo.Content = $"Skopiowano {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")} do schowka.";
+
         this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
     }
 
     private void CutSelectedFiles()
     {
-        if (this.ListBoxFiles.SelectedItems.Count == 0)
+        if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
         {
             return;
         }
 
-        var filePaths = new System.Collections.Specialized.StringCollection();
+        StringCollection filePaths = [];
 
         foreach (PdfFile selectedFile in this.ListBoxFiles.SelectedItems)
         {
             filePaths.Add(selectedFile.FilePath);
         }
 
-        DataObject data = new();
-        data.SetFileDropList(filePaths);
+        DataObject data = new(); // Utwórz nowy obiekt DataObject
 
-        // Wartość 2 oznacza "przenieś" (Move/Cut).
-        MemoryStream dropEffect = new([2, 0, 0, 0]);
+        data.SetFileDropList(filePaths); // Ustaw listę plików do przeniesienia
+
+        MemoryStream dropEffect = new([2, 0, 0, 0]); // 4 bajty określające efekt przeniesienia. Wartość 2 oznacza "przenieś" (Move/Cut).
+
+        // Ustaw efekt przeniesienia w danych
         data.SetData("Preferred DropEffect", dropEffect);
 
+        // Ustaw dane w schowku
         Clipboard.SetDataObject(data, true);
 
         this.StatusBarItemInfo.Content = $"Wycięto {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")}.";
+
         this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
     }
 }

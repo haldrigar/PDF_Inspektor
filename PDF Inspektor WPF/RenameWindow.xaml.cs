@@ -16,9 +16,9 @@ using System.Windows.Input;
 public partial class RenameWindow
 {
     /// <summary>
-    /// Inicjalizuje nowe okno do zmiany nazwy pliku PDF.
+    /// Iicjalizuje nowe okno do zmiany nazwy pliku PDF.
     /// </summary>
-    /// <param name="currentFileName">Zaznaczony plik.</param>
+    /// <param name="currentFileName"></param>
     public RenameWindow(string currentFileName)
     {
         this.InitializeComponent();

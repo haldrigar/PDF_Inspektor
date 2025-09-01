@@ -31,6 +31,8 @@ public sealed class PdfFile : INotifyPropertyChanged
         // Tworzymy obiekt FileInfo tylko raz i używamy go do zainicjowania wszystkich pól.
         FileInfo fileInfo = new(filePath);
 
+        fileInfo.Refresh(); // Odśwież informacje o pliku
+
         this._filePath = filePath;
         this._fileName = fileInfo.Name;
         this._fileSize = fileInfo.Length;
@@ -104,17 +106,14 @@ public sealed class PdfFile : INotifyPropertyChanged
     /// <param name="field">Referencja do pola.</param>
     /// <param name="value">Nowa wartość.</param>
     /// <param name="propertyName">Nazwa właściwości.</param>
-    /// <returns>True, jeśli wartość została zmieniona.</returns>
-    // ReSharper disable once UnusedMethodReturnValue.Local
-    private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return false;
+            return;
         }
 
         field = value;
         this.OnPropertyChanged(propertyName);
-        return true;
     }
 }
