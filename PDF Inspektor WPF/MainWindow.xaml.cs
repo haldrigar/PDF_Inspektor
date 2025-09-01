@@ -266,6 +266,16 @@ public partial class MainWindow
             // 1. Zamknij i zwolnij poprzedni strumień w pamięci, jeśli istnieje.
             this._pdfStream?.Dispose();
 
+            if (!Tools.WaitForFile(pdfFile.FilePath))
+            {
+                this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {pdfFile.FilePath}";
+
+                this._pdfStream?.Dispose();
+                this.PdfViewer.Unload();
+
+                return;
+            }
+
             // 2. Otwórz plik na dysku tylko na chwilę, aby skopiować jego zawartość.
             byte[] fileBytes = File.ReadAllBytes(pdfFile.FilePath);
 
@@ -279,7 +289,6 @@ public partial class MainWindow
         catch (Exception ex)
         {
             Debug.WriteLine($"Błąd podczas ładowania pliku do pamięci: {ex.Message}");
-            MessageBox.Show($"Nie udało się załadować pliku: {pdfFile.FileName}\n\n{ex.Message}", "Błąd ładowania", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             // W razie błędu wyczyść podgląd
             this._pdfStream?.Dispose();

@@ -131,8 +131,6 @@ internal static class Tools
             string extractPath = Path.GetDirectoryName(zipPath) ?? baseDirectory;
             ZipFile.ExtractToDirectory(zipPath, extractPath, true);
 
-            File.Delete(zipPath); // Opcjonalnie usuń archiwum po rozpakowaniu
-
             MessageBox.Show($"Rozpakowywanie {tool.Name} zakończone.", tool.Name, MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
