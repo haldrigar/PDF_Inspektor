@@ -115,7 +115,24 @@
                     <ColumnDefinition/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="ButtonMonitorDirectory" Content="Wybierz katalog" d:LayoutOverrides="Width" Margin="5,5,5,5" Click="ButtonMonitorDirectory_Click" Background="#FFF1F9A5"/>
+
+                <Button 
+                    x:Name="ButtonOpenDirectory" 
+                    Content="Wybierz katalog" 
+                    Grid.Row="0" 
+                    Grid.Column="0"  
+                    Margin="5,5,5,5" 
+                    Click="ButtonOpenDirectory_Click" 
+                    Background="#FFF1F9A5"/>
+
+                <Button 
+                    x:Name="ButtonRefreshDirectory" 
+                    Content="Odśwież katalog" 
+                    Grid.Row="0" 
+                    Grid.Column="1"  
+                    Margin="5,5,5,5" 
+                    Background="#FFF1F9A5"/>
+
             </Grid>
         </GroupBox>
 

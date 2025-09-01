@@ -5,10 +5,10 @@
 // </copyright>
 // ====================================================================================================
 
+namespace PDF_Inspektor;
+
 using System.Windows;
 using System.Windows.Input;
-
-namespace PDF_Inspektor;
 
 /// <summary>
 /// Klasa okna do zmiany nazwy pliku PDF.
@@ -18,7 +18,7 @@ public partial class RenameWindow
     /// <summary>
     /// Inicjalizuje nowe okno do zmiany nazwy pliku PDF.
     /// </summary>
-    /// <param name="currentFileName"></param>
+    /// <param name="currentFileName">Zaznaczony plik.</param>
     public RenameWindow(string currentFileName)
     {
         this.InitializeComponent();
@@ -46,7 +46,7 @@ public partial class RenameWindow
     }
 
     // Obsługa klawisza Enter w polu tekstowym
-    private void FileNameTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    private void FileNameTextBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
         {

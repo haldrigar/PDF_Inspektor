@@ -17,19 +17,19 @@ using System.Text.Json.Serialization;
 public class ExternalTool
 {
     /// <summary>
-    /// Pobiera lub ustawia nazwę wyświetlaną narzędzia.
+    /// Pobiera nazwę wyświetlaną narzędzia.
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>
-    /// Pobiera lub ustawia ścieżkę do pliku wykonywalnego.
+    /// Pobiera ścieżkę do pliku wykonywalnego.
     /// </summary>
-    public string ExecutablePath { get; set; } = string.Empty;
+    public string ExecutablePath { get; init; } = string.Empty;
 
     /// <summary>
-    /// Pobiera lub ustawia nazwę archiwum ZIP do rozpakowania.
+    /// Pobiera nazwę archiwum ZIP do rozpakowania.
     /// </summary>
-    public string ZipFileName { get; set; } = string.Empty;
+    public string ZipFileName { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -44,15 +44,16 @@ internal class AppSettings
     // Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
     [JsonIgnore]
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
     /// <summary>
-    /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
+    /// Pobiera ostatnio używany katalog do otwierania plików PDF.
     /// </summary>
     public string LastUsedDirectory { get; set; } = string.Empty;
 
     /// <summary>
-    /// Pobiera lub ustawia klucz licencyjny Syncfusion.
+    /// Pobiera klucz licencyjny Syncfusion.
     /// </summary>
-    public string SyncfusionLicenseKey { get; set; } = "SyncfusionLicenseKey";
+    public string SyncfusionLicenseKey { get; init; } = "SyncfusionLicenseKey";
 
     /// <summary>
     /// Pobiera lub ustawia Top okna aplikacji.
@@ -115,6 +116,7 @@ internal class AppSettings
     public void Save()
     {
         string json = JsonSerializer.Serialize(this, JsonOptions);
+
         File.WriteAllText(ConfigFilePath, json);
     }
 

@@ -26,14 +26,8 @@ public partial class MainWindow
     // Przechowuje ustawienia aplikacji
     private readonly AppSettings _appSettings;
 
-    // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
-    private readonly NaturalStringComparer _naturalComparer = new();
-
-    // Przechowuje strumień PDF w pamięci
-    private MemoryStream? _pdfStream;
-
-    // Monitoruje zmiany w katalogu
-    private FileSystemWatcher _fileWatcher = new();
+    // Przechowuje strumień aktualnie załadowanego pliku PDF
+    private MemoryStream _selectedPdfStream = new();
 
     /// <summary>
     /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
@@ -68,6 +62,8 @@ public partial class MainWindow
     // Funkcje obsługująca uruchomienie okna
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        Mouse.OverrideCursor = Cursors.Wait; // Ustaw kursor na "czekanie"
+
         this.Top = this._appSettings.WindowTop;
         this.Left = this._appSettings.WindowLeft;
         this.Width = this._appSettings.WindowWidth;
@@ -79,15 +75,18 @@ public partial class MainWindow
         // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
         foreach (ExternalTool tool in this._appSettings.Tools)
         {
+            // Rozpakuj narzędzie, jeśli to konieczne
             Tools.EnsureAndUnpackTool(tool);
         }
 
+        // Załadowanie plików z ostatnio używanego katalogu, jeśli istnieje. Powoduje zaznaczenie pierwszego pliku.
         if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
         {
             this.LoadFiles([this._appSettings.LastUsedDirectory]);
 
             if (this.PdfFiles.Count > 0)
             {
+                // Ustawienie zaznaczenia na pierwszy plik z listy
                 this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
             }
         }
@@ -100,12 +99,8 @@ public partial class MainWindow
         this._appSettings.WindowLeft = this.Left;
         this._appSettings.WindowWidth = this.Width;
         this._appSettings.WindowHeight = this.Height;
-        this._appSettings.LastUsedDirectory = this._fileWatcher.Path;
 
         this._appSettings.Save(); // Zapisz ustawienia
-
-        this._pdfStream?.Dispose(); // Zwolnij zasoby MemoryStream
-        this._fileWatcher?.Dispose(); // Zwolnij zasoby FileSystemWatcher
     }
 
     // Obsługa zmiany rozmiaru okna
@@ -122,7 +117,38 @@ public partial class MainWindow
     // Obsługa przeciągania i upuszczania plików
     private void ListBoxFiles_DragOver(object sender, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        // Domyślnie blokujemy operację upuszczania.
+        e.Effects = DragDropEffects.None;
+
+        // Sprawdzamy, czy przeciągane są pliki/foldery.
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } droppedItems)
+        {
+            // Analizujemy przeciągane elementy.
+            List<string> files = [];
+            List<string> directories = [];
+
+            foreach (string item in droppedItems)
+            {
+                if (Directory.Exists(item))
+                {
+                    directories.Add(item); // Katalog
+                }
+                else if (File.Exists(item))
+                {
+                    files.Add(item); // Plik
+                }
+            }
+
+            // Umożliwiamy upuszczanie tylko w dwóch przypadkach:
+            if (directories.Count == 1 && files.Count == 0) // jeden katalog, zero plików
+            {
+                e.Effects = DragDropEffects.Copy;
+            }
+            else if (directories.Count == 0 && files.Count > 0 && files.All(f => f.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))) // wiele plików pdf, bez katalogów
+            {
+                e.Effects = DragDropEffects.Copy;
+            }
+        }
 
         e.Handled = true;
     }
@@ -130,22 +156,16 @@ public partial class MainWindow
     // Obsługa upuszczania plików
     private void ListBoxFiles_Drop(object sender, DragEventArgs e)
     {
+        // Sprawdź, czy są upuszczone pliki
         if (e.Data.GetData(DataFormats.FileDrop) is string[] droppedItems)
         {
             // Załaduj pliki PDF z upuszczonych elementów
             this.LoadFiles(droppedItems);
-
-            // Ustawienie zaznaczenia na pierwszy plik z listy, jeśli lista nie jest pusta
-            if (this.PdfFiles.Count > 0)
-            {
-                // Ustawienie zaznaczenia na pierwszy plik z listy
-                this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
-            }
         }
     }
 
     // Obsługa przycisku "Otwórz katalog"
-    private void ButtonMonitorDirectory_Click(object sender, RoutedEventArgs e)
+    private void ButtonOpenDirectory_Click(object sender, RoutedEventArgs e)
     {
         // Otwórz okno dialogowe wyboru folderu
         Microsoft.Win32.OpenFolderDialog dialog = new()
@@ -159,26 +179,18 @@ public partial class MainWindow
             return;
         }
 
-        // Wyświetl w TextBox nazwę wybranego folderu, ale bez ścieżki (tylko nazwa katalogu)
-        this.TextBoxDirectory.Text = Path.GetFileName(dialog.FolderName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
         // Załaduj istniejące pliki z wybranego folderu
         this.LoadFiles([dialog.FolderName]);
 
-        // Ustawienie zaznaczenia na ostatni plik z listy, jeśli lista nie jest pusta
-        if (this.PdfFiles.Count > 0)
-        {
-            // Ustawienie zaznaczenia na ostatni plik z listy
-            this.FocusAndScrollToListBoxItem(this.PdfFiles.Last());
-        }
-
-        // Ustawienie FileSystemWatcher na wybrany folder
-        this.SetupFileSystemWatcher(dialog.FolderName);
+        // Zapisz wybrany katalog jako ostatnio używany
+        this._appSettings.LastUsedDirectory = dialog.FolderName;
     }
 
     // Funkcja ładująca pliki PDF z podanych ścieżek
     private void LoadFiles(IEnumerable<string> paths)
     {
+        Mouse.OverrideCursor = Cursors.Wait; // Ustaw kursor na "czekanie"
+
         this.PdfFiles.Clear(); // Wyczyść istniejącą listę plików
 
         List<string> filesToLoad = []; // Lista plików do załadowania
@@ -193,41 +205,43 @@ public partial class MainWindow
             }
             else if (Directory.Exists(path)) // Katalog
             {
-                filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.AllDirectories));
+                filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly)); // Rekursywnie dodaj wszystkie pliki PDF z katalogu
             }
         }
 
-        // Sortowanie plików w kolejności naturalnej
-        filesToLoad.Sort(new NaturalStringComparer());
-
-        // Dodanie plików do ObservableCollection
-        foreach (string file in filesToLoad)
+        // Jeśli lista plików do załadowania nie jest pusta
+        if (filesToLoad.Count > 0)
         {
-            this.PdfFiles.Add(new PdfFile(file));
-        }
+            // Sortowanie plików w kolejności naturalnej
+            filesToLoad.Sort(new NaturalStringComparer());
 
-        // Ustawienie FileSystemWatcher, jeśli jest dokładnie jeden unikalny katalog
-        if (this.PdfFiles.Count > 0)
-        {
+            // Dodanie plików do ObservableCollection
+            foreach (string file in filesToLoad)
+            {
+                this.PdfFiles.Add(new PdfFile(file));
+            }
+
             // Pobierz unikalne katalogi z listy plików PDF
             List<string> directoriesList = [.. this.PdfFiles.Select(p => p.DirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Distinct()];
 
-            // Ustaw FileSystemWatcher tylko wtedy, gdy jest dokładnie jeden unikalny katalog
-            if (directoriesList.Count == 1)
-            {
-                this.SetupFileSystemWatcher(directoriesList.First());
+            // Ustaw ostatnio używany katalog na pierwszy katalog z listy. Będzie i tak jeden katalog, bo ładujemy z jednego katalogu lub z jednego upuszczonego katalogu.
+            this._appSettings.LastUsedDirectory = directoriesList.First();
 
-                // Wyświetl w TextBox nazwę wybranego folderu, ale bez ścieżki (tylko nazwa katalogu)
-                this.TextBoxDirectory.Text = Path.GetFileName(directoriesList.First().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            }
-            else
-            {
-                this.TextBoxDirectory.Text = "Pliki z różnych folderów!";
-            }
+            // Aktualizuj TextBox z katalogiem
+            this.TextBoxDirectory.Text = Path.GetFileName(directoriesList.First().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+            // Zaznacz pierwszy plik z listy
+            this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
+
+            // Przywrócenie kursora jest tu nie potrzebne. Zajmie się tym DocumentLoaded po załadowaniu pierwszego pliku.
         }
         else // Jeśli lista jest pusta, wyczyść widok PdfViewer
         {
+            Mouse.OverrideCursor = null;
+
             this.PdfViewer.Unload(true);
+
+            this._selectedPdfStream.Dispose();
         }
     }
 
@@ -237,86 +251,104 @@ public partial class MainWindow
         // Sprawdzamy, czy zaznaczony element jest typu PdfFile
         if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
-            // Jeśli nic nie jest zaznaczone (np. po usunięciu ostatniego elementu), wyczyść podgląd.
-            this._pdfStream?.Dispose();
+            // Jeśli nic nie jest zaznaczone (np. po usunięciu ostatniego elementu), wyczyść podgląd i strumień
+            this._selectedPdfStream?.Dispose();
+
             this.PdfViewer.Unload();
+
+            Mouse.OverrideCursor = null;
+
             return;
         }
 
         // Aktualizujemy właściwość SelectedPdfFile
         this.SelectedPdfFile = selectedPdfFile;
-        this.ReloadPdfView(selectedPdfFile);
+
+        // Po prostu zainicjuj przeładowanie widoku. Resztą zajmie się DocumentLoaded.
+        this.LoadPdfToView(selectedPdfFile);
     }
 
     /// <summary>
     /// Funkcja przeładowująca widok PdfViewer z pliku PDF.
     /// </summary>
     /// <param name="pdfFile">Plik PDF.</param>
-    private void ReloadPdfView(PdfFile pdfFile)
+    private void LoadPdfToView(PdfFile pdfFile)
     {
+        // Sprawdź, czy plik nadal istnieje
         if (!File.Exists(pdfFile.FilePath))
         {
-            // Plik nie istnieje na dysku, usuń go z listy i zakończ.
             this.PdfFiles.Remove(pdfFile);
+
+            this.StatusBarItemInfo.Content = "Usunięto z listy nieistniejący plik.";
+
             return;
         }
 
         try
         {
-            // 1. Zamknij i zwolnij poprzedni strumień w pamięci, jeśli istnieje.
-            this._pdfStream?.Dispose();
+            Mouse.OverrideCursor = Cursors.Wait;
 
-            if (!Tools.WaitForFile(pdfFile.FilePath))
-            {
-                this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {pdfFile.FilePath}";
+            // Utwórz strumień w pamięci na podstawie wczytanych bajtów.
+            this._selectedPdfStream = new MemoryStream(File.ReadAllBytes(pdfFile.FilePath));
 
-                this._pdfStream?.Dispose();
-                this.PdfViewer.Unload();
-
-                return;
-            }
-
-            // 2. Otwórz plik na dysku tylko na chwilę, aby skopiować jego zawartość.
-            byte[] fileBytes = File.ReadAllBytes(pdfFile.FilePath);
-
-            // 3. Utwórz nowy strumień w pamięci na podstawie wczytanych bajtów.
-            this._pdfStream = new MemoryStream(fileBytes);
-
-            // 4. Załaduj dokument do PdfViewer ze strumienia w pamięci.
-            //    Plik na dysku jest już wolny!
-            this.PdfViewer.Load(this._pdfStream);
+            // Załaduj dokument do PdfViewer ze strumienia w pamięci.
+            this.PdfViewer.Load(this._selectedPdfStream);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Błąd podczas ładowania pliku do pamięci: {ex.Message}");
 
             // W razie błędu wyczyść podgląd
-            this._pdfStream?.Dispose();
             this.PdfViewer.Unload();
+
+            this._selectedPdfStream.Dispose();
+
+            Mouse.OverrideCursor = null;
         }
     }
 
     // Obsługa zdarzenia DocumentLoaded kontrolki PdfViewer
+    // Jest wywoływane po zakończeniu ładowania dokumentu PDF.
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
     {
-        this.PdfViewer.ZoomMode = ZoomMode.FitPage;
-        this.PdfViewer.Width = double.NaN;
-        this.PdfViewer.Height = double.NaN;
-        this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool;
+        this.PdfViewer.ZoomMode = ZoomMode.FitPage; // Dopasuj stronę
 
-        List<string> errors = [];
-        int dpiX = 0, dpiY = 0;
-        int rotation = 0;
+        this.PdfViewer.Width = double.NaN; // Automatyczna szerokość
+        this.PdfViewer.Height = double.NaN; // Automatyczna wysokość
 
-        string mainStatusText = "Błąd ładowania dokumentu!";
+        this.PdfViewer.CursorMode = PdfViewerCursorMode.HandTool; // Ustaw kursor na "rękę"
+
+        List<string> errors = []; // Lista błędów do wyświetlenia
 
         // Najpierw sprawdź, czy w ogóle mamy załadowany i zaznaczony plik
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
+            try
+            {
+                // Pobierz aktualne informacje o pliku, ponieważ mamy pewność, że istnieje i jest dostępny.
+                FileInfo fileInfo = new(selectedPdfFile.FilePath);
+
+                selectedPdfFile.FileSize = fileInfo.Length;
+                selectedPdfFile.LastWriteTime = fileInfo.LastWriteTime;
+            }
+            catch (Exception ex)
+            {
+                // W razie problemu z dostępem (choć to mało prawdopodobne w tym miejscu)
+                Debug.WriteLine($"Błąd podczas odświeżania atrybutów pliku w DocumentLoaded: {ex.Message}");
+
+                errors.Add("BŁĄD ODCZYTU ATRYBUTÓW PLIKU");
+            }
+
+            int dpiX = 0, dpiY = 0; // Domyślne wartości DPI
+
+            int rotation = 0; // Domyślny obrót
+
             // Sprawdź, czy dokument PDF ma strony
             if (this.PdfViewer.LoadedDocument.Pages.Count > 0)
             {
                 (dpiX, dpiY) = PDFTools.GetDPI(this.PdfViewer.LoadedDocument);
+
+                // Sprawdź, czy DPI jest różne od 300x300 z tolerancją +/-1
                 if (Math.Abs(dpiX - 300) > 1 || Math.Abs(dpiY - 300) > 1)
                 {
                     errors.Add("BŁĄD DPI");
@@ -337,32 +369,12 @@ public partial class MainWindow
             }
 
             // Główny status jest ustawiany ZAWSZE, gdy mamy zaznaczony plik
-            mainStatusText = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX}x{dpiY} | Obrót: {rotation}°";
+            this.StatusBarItemMain.Content = $"Plik [{this.ListBoxFiles.SelectedIndex + 1}/{this.PdfFiles.Count}]: {selectedPdfFile.FileName} | Rozmiar: {selectedPdfFile.FileSize / 1024.0:F0} KB | DPI: {dpiX}x{dpiY} | Obrót: {rotation}°";
         }
         else
         {
-            errors.Add("BŁĄD ZAZNACZENIA");
+            errors.Add("BŁĄD ZAZNACZONEGO PLIKU");
         }
-
-        // Test liczby plików (zgodnie z Twoim życzeniem) - wykonujemy go niezależnie
-        if (!string.IsNullOrEmpty(this._fileWatcher.Path) && Directory.Exists(this._fileWatcher.Path))
-        {
-            try
-            {
-                int fileCountOnDisk = Directory.GetFiles(this._fileWatcher.Path, "*.pdf").Length;
-                if (fileCountOnDisk != this.PdfFiles.Count)
-                {
-                    errors.Add($"NIESPÓJNA LICZBA PLIKÓW ({this.PdfFiles.Count} na liście, {fileCountOnDisk} na dysku)");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Błąd podczas sprawdzania liczby plików: {ex.Message}");
-            }
-        }
-
-        // --- Wyświetlanie Statusu ---
-        this.StatusBarItemMain.Content = mainStatusText;
 
         if (errors.Count > 0)
         {
@@ -375,7 +387,7 @@ public partial class MainWindow
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
         }
 
-        Mouse.OverrideCursor = null;
+        Mouse.OverrideCursor = null; // Przywróć kursor
     }
 
     // Obsługa przycisków obrotu
@@ -386,6 +398,7 @@ public partial class MainWindow
         {
             this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia jednego pliku.";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
             return;
         }
 
@@ -396,17 +409,49 @@ public partial class MainWindow
         e.Handled = true; // Zaznacz zdarzenie jako obsłużone
     }
 
+    // Obsługa przycisku "Usuń"
+    private void ButtonDelete_Click(object sender, RoutedEventArgs e)
+    {
+        List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
+
+        if (itemsToDelete.Count == 0)
+        {
+            return;
+        }
+
+        if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        {
+            foreach (PdfFile item in itemsToDelete)
+            {
+                try
+                {
+                    if (File.Exists(item.FilePath))
+                    {
+                        File.Delete(item.FilePath); // Usuń plik z dysku. Jeżeli wystąpi błąd, przejdź do catch i nie usuwaj z listy
+
+                        this.PdfFiles.Remove(item); // Usuń plik z listy
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
     // Obsługa klawiszy na liście plików
     private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
     {
-        // Sprawdź, czy zaznaczony jest dokładnie jeden element dla operacji obrotu
-        if (e.Key == Key.Right || e.Key == Key.Left)
+        if (e.Key == Key.Right || e.Key == Key.Left) // Obsługa klawiszy strzałek do obrotu
         {
             if (this.ListBoxFiles.SelectedItems.Count != 1)
             {
                 this.StatusBarItemInfo.Content = "Obrót wymaga zaznaczenia jednego pliku.";
                 this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
                 e.Handled = true;
+
                 return;
             }
 
@@ -416,7 +461,7 @@ public partial class MainWindow
         }
         else if (e.Key == Key.Delete) // Obsługa klawisza Delete do usuwania pliku
         {
-            List<PdfFile> itemsToDelete = this.ListBoxFiles.SelectedItems.Cast<PdfFile>().ToList();
+            List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
 
             if (itemsToDelete.Count == 0)
             {
@@ -431,7 +476,9 @@ public partial class MainWindow
                     {
                         if (File.Exists(item.FilePath))
                         {
-                            File.Delete(item.FilePath);
+                            File.Delete(item.FilePath); // Usuń plik z dysku. Jeżeli wystąpi błąd, przejdź do catch i nie usuwaj z listy
+
+                            this.PdfFiles.Remove(item); // Usuń plik z listy
                         }
                     }
                     catch (Exception ex)
@@ -446,6 +493,7 @@ public partial class MainWindow
         else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) // Kopiowanie plików (Ctrl+C)
         {
             this.CopySelectedFiles();
+
             e.Handled = true;
         }
         else if (e.Key == Key.X && Keyboard.Modifiers == ModifierKeys.Control) // Wycinanie plików (Ctrl+X)
@@ -454,9 +502,10 @@ public partial class MainWindow
 
             e.Handled = true;
         }
-        else if (e.Key == Key.F2)
+        else if (e.Key == Key.F2) // zmiana nazwy pliku (F2)
         {
             this.RenameSelectedFile();
+
             e.Handled = true;
         }
     }
@@ -464,6 +513,7 @@ public partial class MainWindow
     // Funkcja obracająca stronę i zapisująca zmiany
     private void RotateAndSave(bool rotateRight)
     {
+        // Sprawdź, czy zaznaczony element jest typu PdfFile
         if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
             return;
@@ -471,25 +521,22 @@ public partial class MainWindow
 
         Mouse.OverrideCursor = Cursors.Wait;
 
-        bool success = PDFTools.RotateAndSave(selectedPdfFile.FilePath, rotateRight);
+        // Obróć i zapisz zmiany w pliku PDF
+        bool success = PDFTools.RotateAndSave(this.PdfViewer.LoadedDocument, selectedPdfFile.FilePath, rotateRight);
 
         if (success)
         {
             // Po udanej operacji obrotu i zapisu musimy ręcznie przeładować widok.
-            // Ponieważ zaznaczenie się nie zmienia, zdarzenie SelectionChanged nie zadziała.
-            // To gwarantuje, że użytkownik natychmiast zobaczy zmieniony plik.
-            this.ReloadPdfView(selectedPdfFile);
+            this.LoadPdfToView(selectedPdfFile);
+
+            // przywrócenie kursora jest w DocumentLoaded, który i tak zostanie wywołany po LoadPdfToView
         }
         else
         {
             MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
 
-            // Jeśli operacja się nie udała, musimy zresetować kursor ręcznie.
-            Mouse.OverrideCursor = null;
+            Mouse.OverrideCursor = null; // Przywróć kursor
         }
-
-        // Jeśli operacja się udała, NIE resetujemy kursora tutaj.
-        // Zrobi to za nas metoda PdfViewer_DocumentLoaded po odświeżeniu widoku.
     }
 
     private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
@@ -517,21 +564,18 @@ public partial class MainWindow
             return;
         }
 
+        // Sprawdź, czy zaznaczony element jest typu PdfFile
         if (this.ListBoxFiles.SelectedItem is not PdfFile selectedPdfFile)
         {
             return;
         }
 
-        ExternalTool? tool = this._appSettings.Tools.FirstOrDefault(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
-
-        if (tool == null)
-        {
-            MessageBox.Show($"Nie znaleziono konfiguracji dla narzędzia '{toolName}' w pliku ustawień.", "Błąd konfiguracji", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        ExternalTool tool = this._appSettings.Tools.First(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
 
         string editedFilePath = selectedPdfFile.FilePath;
+
         DateTime lastWriteTimeBeforeEdit = selectedPdfFile.LastWriteTime; // Zapamiętaj czas modyfikacji
+
         string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
 
         Tools.StartExternalProcess(
@@ -542,6 +586,7 @@ public partial class MainWindow
                 this.Dispatcher.InvokeAsync(() =>
                     {
                         var fileInfo = new FileInfo(editedFilePath);
+
                         fileInfo.Refresh();
 
                         // Jeśli plik NIE został zmodyfikowany, przywróć fokus ręcznie.
@@ -553,243 +598,6 @@ public partial class MainWindow
                         }
                     });
             });
-    }
-
-    // Ustawienie FileSystemWatcher do monitorowania nowo dodanych plików PDF
-    private void SetupFileSystemWatcher(string path)
-    {
-        // Zwolnij zasoby poprzedniego FileSystemWatcher, jeśli istnieje
-        this._fileWatcher?.Dispose();
-
-        this._fileWatcher = new FileSystemWatcher(path)
-        {
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.LastWrite,
-            Filter = "*.pdf",
-            IncludeSubdirectories = false,
-            EnableRaisingEvents = true,
-            InternalBufferSize = 65536,
-        };
-
-        this._fileWatcher.Created += this.FileWatcher_Created; // Obsługa zdarzenia utworzenia pliku
-        this._fileWatcher.Deleted += this.FileWatcher_Deleted; // Obsługa zdarzenia usunięcia pliku
-        this._fileWatcher.Renamed += this.FileWatcher_Renamed; // Obsługa zdarzenia zmiany nazwy pliku
-        this._fileWatcher.Changed += this.FileWatcher_Changed; // Obsługa zdarzenia zmiany pliku
-    }
-
-    // Obsługa zdarzenia utworzenia pliku
-    private void FileWatcher_Created(object sender, FileSystemEventArgs e)
-    {
-        this.Dispatcher.Invoke(() =>
-        {
-            try
-            {
-                this.StatusBarItemInfo.Content = $"Wykryto nowy plik: {e.Name}...";
-
-                if (!Tools.WaitForFile(e.FullPath))
-                {
-                    this.StatusBarItemInfo.Content = $"Nie można uzyskać dostępu do: {e.Name}";
-                    return;
-                }
-
-                if (this.PdfFiles.Any(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return;
-                }
-
-                Debug.WriteLine($"FileWatcher_Created => Znaleziono nowy plik: {e.FullPath}!");
-                var fileToAdd = new PdfFile(e.FullPath);
-                this.AddAndSortFile(fileToAdd); // <-- Użycie nowej metody
-                this.FocusAndScrollToListBoxItem(fileToAdd);
-                this.StatusBarItemInfo.Content = $"Dodano: {e.Name}";
-            }
-            catch (Exception ex)
-            {
-                this.StatusBarItemInfo.Content = $"Błąd podczas dodawania pliku: {e.Name}";
-                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Created: {ex.Message}");
-            }
-        });
-    }
-
-    // Obsługa zdarzenia usunięcia pliku
-    private void FileWatcher_Deleted(object sender, FileSystemEventArgs e)
-    {
-        this.Dispatcher.Invoke(() =>
-        {
-            try
-            {
-                PdfFile? fileToRemove = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
-
-                if (fileToRemove == null)
-                {
-                    return;
-                }
-
-                Debug.WriteLine($"FileWatcher_Deleted => Wykryto usunięcie pliku: {e.FullPath}!");
-
-                int removedIndex = this.PdfFiles.IndexOf(fileToRemove);
-                bool wasSelected = this.SelectedPdfFile == fileToRemove;
-
-                if (wasSelected)
-                {
-                    this.PdfViewer.Unload(true);
-                }
-
-                this.PdfFiles.Remove(fileToRemove);
-
-                if (this.PdfFiles.Count == 0)
-                {
-                    this.StatusBarItemMain.Content = "Gotowy!";
-                    this.StatusBarItemInfo.Content = "Wszystkie pliki zostały usunięte.";
-                    return;
-                }
-
-                if (wasSelected)
-                {
-                    int newIndex = removedIndex >= this.PdfFiles.Count ? this.PdfFiles.Count - 1 : removedIndex;
-                    this.ListBoxFiles.SelectedIndex = newIndex;
-                    if (this.ListBoxFiles.SelectedItem is PdfFile newSelectedItem)
-                    {
-                        this.FocusAndScrollToListBoxItem(newSelectedItem);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Deleted: {ex.Message}");
-            }
-        });
-    }
-
-    // Obsługa zdarzenia zmiany nazwy pliku
-    private void FileWatcher_Renamed(object sender, RenamedEventArgs e)
-    {
-        this.Dispatcher.Invoke(() =>
-        {
-            try
-            {
-                PdfFile? fileToRename = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.OldFullPath, StringComparison.OrdinalIgnoreCase));
-                if (fileToRename == null)
-                {
-                    return;
-                }
-
-                Debug.WriteLine($"FileWatcher_Renamed => Zmieniono nazwę pliku na: {e.FullPath}!");
-                this.PdfFiles.Remove(fileToRename);
-                fileToRename.FilePath = e.FullPath;
-                fileToRename.FileName = Path.GetFileName(e.FullPath);
-                fileToRename.DirectoryName = Path.GetDirectoryName(e.FullPath) ?? string.Empty;
-                this.AddAndSortFile(fileToRename); // <-- Użycie nowej metody
-                this.FocusAndScrollToListBoxItem(fileToRename);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Renamed: {ex.Message}");
-            }
-        });
-    }
-
-    // Obsługa zdarzenia zmiany pliku, jego rozmiaru lub daty modyfikacji
-    private void FileWatcher_Changed(object sender, FileSystemEventArgs e)
-    {
-        // Wykonaj aktualizację w wątku UI
-        this.Dispatcher.Invoke(() =>
-        {
-            try
-            {
-                // Sprawdź, czy plik istnieje na dysku. Jeśli nie, nic nie rób.
-                if (!File.Exists(e.FullPath))
-                {
-                    return;
-                }
-
-                // Znajdź plik na liście w aplikacji
-                PdfFile? fileToUpdate = this.PdfFiles.FirstOrDefault(p => p.FilePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase));
-
-                if (fileToUpdate == null)
-                {
-                    return; // Pliku nie ma na naszej liście, ignoruj
-                }
-
-                // Pobierz aktualne informacje o pliku z dysku
-                var fileInfo = new FileInfo(e.FullPath);
-                long newFileSize = fileInfo.Length;
-                DateTime newLastWriteTime = fileInfo.LastWriteTime;
-
-                // KLUCZOWY WARUNEK: Sprawdź, czy zmiana nie została już przetworzona.
-                // Jeśli czas modyfikacji jest taki sam, ignorujemy to zdarzenie.
-                if (fileToUpdate.LastWriteTime >= newLastWriteTime)
-                {
-                    return;
-                }
-
-                // Mamy nową, rzeczywistą zmianę. Aktualizujemy dane.
-                Debug.WriteLine($"FileWatcher_Changed => Aktualizacja pliku: {e.FullPath}!");
-                fileToUpdate.FileSize = newFileSize;
-                fileToUpdate.LastWriteTime = newLastWriteTime; // ustawiamy nowy czas
-
-                // Jeśli zmieniony plik jest aktualnie zaznaczony, przeładuj podgląd.
-                if (this.SelectedPdfFile == fileToUpdate)
-                {
-                    this.ReloadPdfView(fileToUpdate);
-                }
-
-                // Ustaw fokus na zaktualizowany plik
-                this.FocusAndScrollToListBoxItem(fileToUpdate);
-            }
-            catch (IOException ex)
-            {
-                Debug.WriteLine($"Błąd I/O podczas sprawdzania pliku: {e.FullPath}. Błąd: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Nieoczekiwany błąd w FileWatcher_Changed: {ex.Message}");
-            }
-        });
-    }
-
-    /// <summary>
-    /// Dodaje plik do kolekcji PdfFiles, zachowując sortowanie naturalne.
-    /// </summary>
-    /// <param name="fileToAdd">Plik do dodania.</param>
-    private void AddAndSortFile(PdfFile fileToAdd)
-    {
-        int insertIndex = 0;
-
-        while (insertIndex < this.PdfFiles.Count && this._naturalComparer.Compare(this.PdfFiles[insertIndex].FilePath, fileToAdd.FilePath) < 0)
-        {
-            insertIndex++;
-        }
-
-        this.PdfFiles.Insert(insertIndex, fileToAdd);
-    }
-
-    // Obsługa przycisku "Usuń"
-    private void ButtonDelete_Click(object sender, RoutedEventArgs e)
-    {
-        List<PdfFile> itemsToDelete = this.ListBoxFiles.SelectedItems.Cast<PdfFile>().ToList();
-
-        if (itemsToDelete.Count == 0)
-        {
-            return;
-        }
-
-        if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-        {
-            foreach (PdfFile item in itemsToDelete)
-            {
-                try
-                {
-                    if (File.Exists(item.FilePath))
-                    {
-                        File.Delete(item.FilePath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -871,6 +679,14 @@ public partial class MainWindow
 
     private void PdfViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        // === NOWA POPRAWKA ===
+        // Jeśli klawisz Ctrl jest wciśnięty, nie rób nic.
+        // Pozwól kontrolce PdfViewer obsłużyć zdarzenie (zoomowanie).
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            return;
+        }
+
         if (this.PdfFiles.Count == 0)
         {
             return;
@@ -899,7 +715,8 @@ public partial class MainWindow
             this.FocusAndScrollToListBoxItem(selected);
         }
 
-        e.Handled = true; // Zablokuj domyślne przewijanie/zoomowanie w podglądzie
+        // Oznacz zdarzenie jako obsłużone TYLKO wtedy, gdy nie wciskamy Ctrl
+        e.Handled = true;
     }
 
     // Obsługa kliknięcia "Zmień nazwę..." w menu kontekstowym

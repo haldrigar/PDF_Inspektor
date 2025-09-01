@@ -7,8 +7,6 @@
 
 namespace PDF_Inspektor;
 
-using System.IO;
-
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Exporting;
 using Syncfusion.Pdf.Parsing;
@@ -19,53 +17,51 @@ using Syncfusion.Pdf.Parsing;
 internal static class PDFTools
 {
     /// <summary>
-    /// Obraca pierwszą stronę dokumentu PDF o 90 stopni i zapisuje zmiany.
+    /// Obraca pierwszą stronę dostarczonego dokumentu PDF i zapisuje zmiany do wskazanej lokalizacji na dysku.
     /// </summary>
-    /// <param name="filePath">Ścieżka do pliku PDF.</param>
+    /// <param name="loadedDocument">Wcześniej załadowany dokument PDF, który ma zostać zmodyfikowany.</param>
+    /// <param name="savePath">Pełna ścieżka, pod którą zostanie zapisany zmodyfikowany plik.</param>
     /// <param name="rotateRight">True, aby obrócić w prawo; false, aby obrócić w lewo.</param>
     /// <returns>True, jeśli operacja się powiodła; w przeciwnym razie false.</returns>
-    public static bool RotateAndSave(string filePath, bool rotateRight)
+    public static bool RotateAndSave(PdfLoadedDocument? loadedDocument, string savePath, bool rotateRight)
     {
-        if (!File.Exists(filePath))
+        // Sprawdź, czy przekazany dokument i ścieżka są prawidłowe
+        if (loadedDocument == null || string.IsNullOrWhiteSpace(savePath))
         {
             return false;
         }
 
         try
         {
-            // Załaduj dokument bezpośrednio z pliku. Syncfusion poradzi sobie z tymczasowym dostępem.
-            var loadedDocument = new PdfLoadedDocument(filePath);
-
-            // Sprawdzenie, czy dokument ma co najmniej jedną stronę
+            // Sprawdź, czy dokument zawiera strony
             if (loadedDocument.Pages.Count == 0)
             {
-                loadedDocument.Close(true);
                 return false;
             }
 
+            // Pobierz pierwszą stronę dokumentu
             if (loadedDocument.Pages[0] is not PdfLoadedPage loadedPage)
             {
-                loadedDocument.Close(true);
                 return false;
             }
 
-            int rotationAngle = (int)PdfPageRotateAngle.RotateAngle90;
-            int currentRotation = (int)loadedPage.Rotation;
-            int newRotation = rotateRight
-                ? (currentRotation + rotationAngle) % 360
-                : (currentRotation - rotationAngle + 360) % 360;
+            int rotationAngle = (int)PdfPageRotateAngle.RotateAngle90; // Kąt obrotu 90 stopni
 
-            loadedPage.Rotation = (PdfPageRotateAngle)newRotation;
+            int currentRotation = (int)loadedPage.Rotation; // Aktualny kąt obrotu strony (0, 90, 180, 270)
 
-            // Zapisz i zamknij dokument, zwalniając zasoby.
-            loadedDocument.Save();
-            loadedDocument.Close(true);
+            int newRotation = rotateRight ? (currentRotation + rotationAngle) % 360 : (currentRotation - rotationAngle + 360) % 360; // Nowy kąt obrotu
+
+            loadedPage.Rotation = (PdfPageRotateAngle)newRotation; // Ustaw nowy kąt obrotu strony
+
+            // Zapisz zmiany do pliku na dysku pod wskazaną ścieżką
+            loadedDocument.Save(savePath);
 
             return true;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Błąd podczas obracania i zapisywania pliku: {ex.Message}");
+
             return false;
         }
     }
@@ -75,41 +71,41 @@ internal static class PDFTools
     /// niezależnie od rotacji strony.
     /// </summary>
     /// <param name="pdfLoadedDocument">Dokument PDF.</param>
-    /// <returns>Wartość DPI.</returns>
+    /// <returns>Krotka (int, int) z wartościami DPI dla osi X i Y.</returns>
     public static (int dpiX, int dpiY) GetDPI(PdfLoadedDocument pdfLoadedDocument)
     {
-        // Sprawdź, czy dokument zawiera strony
-        if (pdfLoadedDocument.Pages.Count <= 0)
+        if (pdfLoadedDocument.Pages.Count <= 0 || pdfLoadedDocument.Pages[0] is not PdfLoadedPage page || page.ImagesInfo.Length <= 0)
         {
             return (0, 0);
         }
 
-        PdfLoadedPage page = (PdfLoadedPage)pdfLoadedDocument.Pages[0]; // Pobierz pierwszą stronę dokumentu
+        PdfImageInfo imgInfo = page.ImagesInfo[0];
 
-        // Sprawdź, czy strona zawiera obrazy
-        if (page.ImagesInfo.Length <= 0)
+        // Właściwość `Image` może być `null`. Musimy to sprawdzić, zanim uzyskamy dostęp do jej właściwości.
+        if (imgInfo.Image is not { } image)
         {
+            // Jeśli nie możemy uzyskać obiektu obrazu, nie możemy obliczyć DPI.
             return (0, 0);
         }
 
-        PdfImageInfo imgInfo = page.ImagesInfo[0]; // Pobierz informacje o pierwszym obrazie na pierwszej stronie
+        // Teraz jest już bezpiecznie. Właściwości Width i Height istnieją na obiekcie PdfImage.
+        int widthPx = image.Width;
+        int heightPx = image.Height;
 
-        // Rozdzielczość w pikselach obrazu (oryginalny rozmiar obrazu) bez względu na skalowanie w PDF
-        int widthPx = imgInfo.Image.Width;
-        int heightPx = imgInfo.Image.Height;
-
-        // Rozmiar ramki w punktach PDF (1 punkt = 1/72 cala) - rozmiar obrazu w dokumencie PDF zależy od kąta obrotu strony. Obraz może być obrócony, ale jego rozmiar w pikselach pozostaje taki sam.
+        // Rozmiar ramki w punktach PDF (1 punkt = 1/72 cala)
         float widthPt = imgInfo.Bounds.Width;
         float heightPt = imgInfo.Bounds.Height;
 
         // Uwzględnij obrót strony:
-        int rotation = (int)page.Rotation;
-
-        // rotation: 0 = 0°, 1 = 90°, 2 = 180°, 3 = 270° (Syncfusion.Pdf.PdfPageRotateAngle)
-        // Jeśli strona jest obrócona o 90° lub 270°, zamień szerokość z wysokością
-        if (rotation is 1 or 3)
+        if (page.Rotation is PdfPageRotateAngle.RotateAngle90 or PdfPageRotateAngle.RotateAngle270)
         {
             (widthPt, heightPt) = (heightPt, widthPt);
+        }
+
+        // Uniknij dzielenia przez zero
+        if (widthPt <= 0 || heightPt <= 0)
+        {
+            return (0, 0);
         }
 
         // Przeliczenie DPI
