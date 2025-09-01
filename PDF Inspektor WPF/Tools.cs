@@ -7,7 +7,6 @@
 
 namespace PDF_Inspektor;
 
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Windows;
@@ -83,48 +82,6 @@ internal static class Tools
         catch (Exception ex)
         {
             MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {tool.Name}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    /// <summary>
-    /// Uruchamia zewnętrzny proces dla podanego pliku i wykonuje akcję po jego zakończeniu.
-    /// </summary>
-    /// <param name="executablePath">Pełna ścieżka do pliku wykonywalnego narzędzia.</param>
-    /// <param name="fileToOpen">Pełna ścieżka do pliku, który ma zostać otwarty w narzędziu.</param>
-    /// <param name="onProcessExited">Akcja do wykonania po zamknięciu procesu. Może być null.</param>
-    public static void StartExternalProcess(string executablePath, string fileToOpen, Action? onProcessExited = null)
-    {
-        if (!File.Exists(executablePath))
-        {
-            MessageBox.Show($"Nie znaleziono aplikacji: {executablePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        if (!File.Exists(fileToOpen))
-        {
-            MessageBox.Show($"Plik nie istnieje: {fileToOpen}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        try
-        {
-            Process process = new()
-            {
-                StartInfo = new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = false },
-                EnableRaisingEvents = true,
-            };
-
-            process.Exited += (_, _) =>
-            {
-                onProcessExited?.Invoke();
-                process.Dispose();
-            };
-
-            process.Start();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Nie udało się uruchomić procesu dla pliku: {fileToOpen}.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

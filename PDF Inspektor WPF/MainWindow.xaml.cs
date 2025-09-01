@@ -572,32 +572,43 @@ public partial class MainWindow
 
         ExternalTool tool = this._appSettings.Tools.First(t => t.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
 
-        string editedFilePath = selectedPdfFile.FilePath;
+        string fileToOpen = selectedPdfFile.FilePath; // Ścieżka do pliku PDF do otwarcia
 
-        DateTime lastWriteTimeBeforeEdit = selectedPdfFile.LastWriteTime; // Zapamiętaj czas modyfikacji
+        string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath); // Pełna ścieżka do pliku wykonywalnego
 
-        string executablePath = Path.Combine(AppContext.BaseDirectory, tool.ExecutablePath);
+        if (!File.Exists(executablePath)) // Sprawdź, czy plik wykonywalny istnieje
+        {
+            MessageBox.Show($"Nie znaleziono aplikacji: {executablePath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
 
-        Tools.StartExternalProcess(
-            executablePath,
-            editedFilePath,
-            () =>
+            return;
+        }
+
+        if (!File.Exists(fileToOpen)) // Sprawdź, czy plik do otwarcia istnieje
+        {
+            MessageBox.Show($"Plik nie istnieje: {fileToOpen}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            return;
+        }
+
+        try
+        {
+            Process process = new()
             {
-                this.Dispatcher.InvokeAsync(() =>
-                    {
-                        var fileInfo = new FileInfo(editedFilePath);
+                StartInfo = new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = false },
+                EnableRaisingEvents = true,
+            };
 
-                        fileInfo.Refresh();
+            process.Exited += (_, _) =>
+            {
+                process.Dispose();
+            };
 
-                        // Jeśli plik NIE został zmodyfikowany, przywróć fokus ręcznie.
-                        // Jeśli został, DocumentLoaded zrobi to za nas.
-                        if (fileInfo.Exists && fileInfo.LastWriteTime == lastWriteTimeBeforeEdit)
-                        {
-                            Debug.WriteLine("Plik niezmodyfikowany. Ręczne przywracanie fokusu.");
-                            this.FocusAndScrollToListBoxItem(selectedPdfFile);
-                        }
-                    });
-            });
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Nie udało się uruchomić procesu dla pliku: {fileToOpen}.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     /// <summary>
