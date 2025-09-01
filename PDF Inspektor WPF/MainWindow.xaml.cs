@@ -383,6 +383,8 @@ public partial class MainWindow
         {
             Mouse.OverrideCursor = Cursors.Wait;
 
+            this._selectedPdfStream?.Dispose(); // Zwolnij poprzedni strumień, jeśli istnieje
+
             // Utwórz strumień w pamięci na podstawie wczytanych bajtów.
             this._selectedPdfStream = new MemoryStream(File.ReadAllBytes(pdfFile.FilePath));
 
@@ -509,32 +511,7 @@ public partial class MainWindow
     // Obsługa przycisku "Usuń"
     private void ButtonDelete_Click(object sender, RoutedEventArgs e)
     {
-        List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
-
-        if (itemsToDelete.Count == 0)
-        {
-            return;
-        }
-
-        if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-        {
-            foreach (PdfFile item in itemsToDelete)
-            {
-                try
-                {
-                    if (File.Exists(item.FilePath))
-                    {
-                        File.Delete(item.FilePath); // Usuń plik z dysku. Jeżeli wystąpi błąd, przejdź do catch i nie usuwaj z listy
-
-                        this.PdfFiles.Remove(item); // Usuń plik z listy
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
+        this.DeleteSelectedFiles(); // Funkcja usuwająca zaznaczone pliki
     }
 
     // Obsługa klawiszy na liście plików
@@ -558,32 +535,7 @@ public partial class MainWindow
         }
         else if (e.Key == Key.Delete) // Obsługa klawisza Delete do usuwania pliku
         {
-            List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
-
-            if (itemsToDelete.Count == 0)
-            {
-                return; // Nic nie jest zaznaczone, więc nic nie usuwamy
-            }
-
-            if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} plików?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-            {
-                foreach (PdfFile item in itemsToDelete)
-                {
-                    try
-                    {
-                        if (File.Exists(item.FilePath))
-                        {
-                            File.Delete(item.FilePath); // Usuń plik z dysku. Jeżeli wystąpi błąd, przejdź do catch i nie usuwaj z listy
-
-                            this.PdfFiles.Remove(item); // Usuń plik z listy
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            }
+            this.DeleteSelectedFiles(); // Funkcja usuwająca zaznaczone pliki
 
             e.Handled = true;
         }
@@ -953,5 +905,69 @@ public partial class MainWindow
         this.StatusBarItemInfo.Content = $"Wycięto {this.ListBoxFiles.SelectedItems.Count} {(this.ListBoxFiles.SelectedItems.Count == 1 ? "plik" : "plików")}.";
 
         this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+    }
+
+    /// <summary>
+    /// Obsługuje kliknięcie przycisku odświeżania katalogu.
+    /// </summary>
+    private void ButtonRefreshDirectory_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
+        {
+            // Przechowaj ID aktualnie zaznaczonego pliku
+            string? selectedFilePath = this.SelectedPdfFile?.FilePath;
+
+            // Załaduj ponownie pliki z ostatnio używanego katalogu
+            this.LoadFiles([this._appSettings.LastUsedDirectory]);
+
+            // Spróbuj przywrócić zaznaczenie
+            if (selectedFilePath != null)
+            {
+                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == selectedFilePath);
+
+                if (fileToSelect != null)
+                {
+                    this.FocusAndScrollToListBoxItem(fileToSelect);
+                }
+            }
+        }
+        else
+        {
+            this.StatusBarItemInfo.Content = "Brak katalogu do odświeżenia.";
+        }
+    }
+
+    /// <summary>
+    /// Usuwa zaznaczone pliki z listy i dysku po potwierdzeniu przez użytkownika.
+    /// </summary>
+    private void DeleteSelectedFiles()
+    {
+        List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
+
+        if (itemsToDelete.Count == 0)
+        {
+            return;
+        }
+
+        if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} {(itemsToDelete.Count == 1 ? "plik" : "plików")}?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        foreach (PdfFile item in itemsToDelete)
+        {
+            try
+            {
+                // Najpierw usuń plik z dysku.
+                File.Delete(item.FilePath);
+
+                // Jeśli powyższa operacja się udała, usuń plik z listy.
+                this.PdfFiles.Remove(item);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

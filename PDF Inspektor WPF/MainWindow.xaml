@@ -131,7 +131,7 @@
                     Grid.Row="0" 
                     Grid.Column="1"  
                     Margin="5,5,5,5" 
-                    Background="#FFF1F9A5"/>
+                    Background="#FFF1F9A5" Click="ButtonRefreshDirectory_Click"/>
 
             </Grid>
         </GroupBox>
