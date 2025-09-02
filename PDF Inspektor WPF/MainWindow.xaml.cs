@@ -225,6 +225,7 @@ public partial class MainWindow
         Microsoft.Win32.OpenFolderDialog dialog = new()
         {
             Title = "Wybierz folder do przetwarzania",
+            InitialDirectory = this._appSettings.LastUsedDirectory,
         };
 
         // Jeśli użytkownik anulował wybór, zakończ działanie funkcji
@@ -243,69 +244,64 @@ public partial class MainWindow
     // Funkcja ładująca pliki PDF z podanych ścieżek
     private void LoadFiles(IEnumerable<string> paths)
     {
-        Mouse.OverrideCursor = Cursors.Wait; // Ustaw kursor na "czekanie"
+        Mouse.OverrideCursor = Cursors.Wait;
 
         try
         {
-            /* ------------------------------------------------------ */
-            this.PdfViewer.Unload(true); // Wyczyść podgląd PDF
+            // Weryfikacja, czy wszystkie ścieżki pochodzą z jednego katalogu
+            HashSet<string> directories = new(StringComparer.OrdinalIgnoreCase);
 
-            this._selectedPdfStream?.Dispose(); // Zwolnij poprzedni strumień, jeśli istnieje
-
-            this.PdfFiles.Clear(); // Wyczyść istniejącą listę plików
-            /* ------------------------------------------------------ */
-
-            List<string> filesToLoad = []; // Lista plików do załadowania
-
-            // Przetwarzanie każdej ścieżki
             foreach (string path in paths)
             {
-                // Sprawdzenie, czy ścieżka jest plikiem PDF lub katalogiem
-                if (File.Exists(path) && path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) // Pojedynczy plik PDF
+                if (File.Exists(path))
                 {
-                    filesToLoad.Add(path);
+                    directories.Add(Path.GetDirectoryName(path) ?? string.Empty);
                 }
-                else if (Directory.Exists(path)) // Katalog
+                else if (Directory.Exists(path))
                 {
-                    filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly)); // Rekursywnie dodaj wszystkie pliki PDF z katalogu
+                    directories.Add(path);
                 }
             }
 
-            // Jeśli lista plików do załadowania nie jest pusta
+            if (directories.Count > 1)
+            {
+                MessageBox.Show("Proszę przeciągać pliki lub foldery tylko z jednego katalogu naraz.", "Niedozwolona operacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                return;
+            }
+
+            string singleDirectory = directories.First();
+
+            // Krok 1: Ustaw tekst i zapisz katalog PRZED czyszczeniem i ładowaniem plików.
+            // Dzięki temu nazwa folderu pozostanie widoczna, nawet jeśli będzie pusty.
+            this._appSettings.LastUsedDirectory = singleDirectory;
+
+            this.TextBoxDirectory.Text = Path.GetFileName(singleDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+            // Czyszczenie starych danych
+            this.PdfViewer.Unload(true);
+
+            this._selectedPdfStream?.Dispose();
+
+            this.PdfFiles.Clear();
+
+            // Ładowanie plików TYLKO z tego jednego, zweryfikowanego katalogu
+            List<string> filesToLoad = [.. Directory.GetFiles(singleDirectory, "*.pdf", SearchOption.TopDirectoryOnly)];
+
             if (filesToLoad.Count > 0)
             {
-                // sprawdzenie czy wszystkie pliki pochodzą z jednego katalogu
-                int uniqueDirectoryCount = filesToLoad.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-
-                if (uniqueDirectoryCount > 1) // jeśli pliki pochodzą z więcej niż jednego katalogu
-                {
-                    MessageBox.Show("Wszystkie pliki muszą pochodzić z jednego folderu!", "Sprawdzenie ilości folderów", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-
-                    return;
-                }
-
-                // Sortowanie plików w kolejności naturalnej
+                // Sortowanie i dodawanie plików do listy
                 filesToLoad.Sort(this._naturalComparer);
 
-                // Dodanie plików do ObservableCollection
                 foreach (string file in filesToLoad)
                 {
                     this.PdfFiles.Add(new PdfFile(file));
                 }
-
-                // Ustaw ostatnio używany katalog na pierwszy katalog z listy. Będzie i tak jeden katalog, bo ładujemy z jednego katalogu lub z jednego upuszczonego katalogu.
-                this._appSettings.LastUsedDirectory = this.PdfFiles.First().DirectoryName;
-
-                // Aktualizuj TextBox z katalogiem
-                this.TextBoxDirectory.Text = Path.GetFileName(this.PdfFiles.First().DirectoryName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
-                // Zaznacz pierwszy plik z listy
-                this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
             }
         }
         finally
         {
-            Mouse.OverrideCursor = null; // Przywróć kursor
+            Mouse.OverrideCursor = null;
         }
     }
 
