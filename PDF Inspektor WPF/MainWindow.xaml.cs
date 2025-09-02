@@ -166,6 +166,44 @@ public partial class MainWindow
             }
         }
 
+        // =============================== DODANIE NOWYCH PLIKÓW Z DYSKU =====================================================
+        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
+        {
+            // Pobierz wszystkie PDF-y z katalogu
+            string[] pdfPathsDirectory = Directory.GetFiles(this._appSettings.LastUsedDirectory, "*.pdf", SearchOption.TopDirectoryOnly);
+
+            // Utwórz zbiór ścieżek już załadowanych plików (dla szybkiego sprawdzania)
+            HashSet<string> pdfPathsListBox = new(this.PdfFiles.Select(f => f.FilePath), StringComparer.OrdinalIgnoreCase);
+
+            // Dodaj każdy nowy plik, który nie istnieje na liście
+            int addedCount = 0;
+
+            foreach (string path in pdfPathsDirectory)
+            {
+                if (!pdfPathsListBox.Contains(path))
+                {
+                    try
+                    {
+                        PdfFile newFile = new PdfFile(path); // lub inny Twój konstruktor
+
+                        this.AddAndSortFile(newFile); // Dodaj i posortuj
+
+                        addedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Błąd podczas dodawania nowego pliku PDF: {path} - {ex.Message}");
+                    }
+                }
+            }
+
+            if (addedCount > 0)
+            {
+                this.StatusBarItemInfo.Content = $"Dodano {addedCount} nowych plików PDF do listy.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
+            }
+        }
+
         // =============================== SPRAWDZENIE CZY ZAZNACZONY PLIK BYŁ MODYFIKOWANY POZA PROGRAMEM ====================
         // Sprawdź, czy jakikolwiek plik jest zaznaczony
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile && this.ListBoxFiles.SelectedItems.Count == 1)
