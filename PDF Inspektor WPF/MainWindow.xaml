@@ -97,7 +97,15 @@
                     x:Name="TextBoxDirectory" 
                     Grid.Row="0" 
                     Grid.Column="0"
-                    IsEnabled="False" FontWeight="Bold" FontSize="16" TextAlignment="Center" Margin="10,10,10,10" Background="#FFF1F9A5"/>
+                    IsReadOnly="True"
+                    FontWeight="Bold" 
+                    FontSize="16" 
+                    TextAlignment="Center" 
+                    Margin="10,10,10,10" 
+                    Background="#FFF1F9A5" 
+                    Cursor="Hand"
+                    ToolTip="Podwójne kliknięcie otworzy folder w Eksploratorze Windows"
+                    MouseDoubleClick="TextBoxDirectory_MouseDoubleClick"/>
 
             </Grid>
 

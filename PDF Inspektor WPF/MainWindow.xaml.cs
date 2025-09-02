@@ -31,7 +31,7 @@ public partial class MainWindow
     private readonly NaturalStringComparer _naturalComparer = new();
 
     // Przechowuje strumień aktualnie załadowanego pliku PDF
-    private MemoryStream _selectedPdfStream = new();
+    private MemoryStream? _selectedPdfStream;
 
     /// <summary>
     /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
@@ -133,7 +133,7 @@ public partial class MainWindow
     private void Window_Activated(object sender, EventArgs e)
     {
         // ============================================== USUNIĘCIE Z LISTY SKASOWANYCH PLIKÓW ==================================
-        bool filesWereRemoved = false;
+        int removedCount = 0;
 
         // Używamy pętli 'for' od końca, aby bezpiecznie usuwać elementy z kolekcji.
         for (int i = this.PdfFiles.Count - 1; i >= 0; i--)
@@ -145,24 +145,22 @@ public partial class MainWindow
                 // Plik nie istnieje na dysku, więc usuwamy go z listy.
                 this.PdfFiles.RemoveAt(i);
 
-                filesWereRemoved = true;
-
                 Debug.WriteLine($"Plik '{fileToCheck.FileName}' nie istnieje. Usunięto z listy.");
+
+                removedCount++;
             }
         }
 
-        if (filesWereRemoved)
+        if (removedCount > 0)
         {
-            this.StatusBarItemInfo.Content = "Odświeżono listę, usunięto z listy skasowane pliki.";
+            this.StatusBarItemInfo.Content = $"Usunięto {removedCount} plików PDF z listy.";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
 
             // Jeśli po usunięciu nie ma już żadnych plików, zakończ.
             if (this.PdfFiles.Count == 0)
             {
                 this.PdfViewer.Unload(true);
-                this._selectedPdfStream.Dispose();
-
-                return;
+                this._selectedPdfStream?.Dispose();
             }
         }
 
@@ -184,9 +182,11 @@ public partial class MainWindow
                 {
                     try
                     {
-                        PdfFile newFile = new PdfFile(path); // lub inny Twój konstruktor
+                        PdfFile pdfToAdd = new(path); // Utwórz nowy obiekt PdfFile
 
-                        this.AddAndSortFile(newFile); // Dodaj i posortuj
+                        this.AddAndSortFile(pdfToAdd); // Dodaj i posortuj
+
+                        Debug.WriteLine($"Plik '{pdfToAdd.FileName}' dodano do listy.");
 
                         addedCount++;
                     }
@@ -200,7 +200,7 @@ public partial class MainWindow
             if (addedCount > 0)
             {
                 this.StatusBarItemInfo.Content = $"Dodano {addedCount} nowych plików PDF do listy.";
-                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
             }
         }
 
@@ -366,7 +366,7 @@ public partial class MainWindow
         {
             this._selectedPdfStream?.Dispose();
 
-            this.PdfViewer.Unload();
+            this.PdfViewer.Unload(true);
 
             Mouse.OverrideCursor = null;
         }
@@ -407,9 +407,9 @@ public partial class MainWindow
             Debug.WriteLine($"Błąd podczas ładowania pliku do pamięci: {ex.Message}");
 
             // W razie błędu wyczyść podgląd
-            this.PdfViewer.Unload();
+            this.PdfViewer.Unload(true);
 
-            this._selectedPdfStream.Dispose();
+            this._selectedPdfStream?.Dispose();
         }
         finally
         {
@@ -657,25 +657,14 @@ public partial class MainWindow
                 return;
             }
 
+            // Uruchom narzędzie z plikiem jako argumentem
             try
             {
-                Process process = new()
-                {
-                    StartInfo = new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = false },
-                    EnableRaisingEvents = true,
-                };
-
-                process.Exited += (_, _) => { process.Dispose(); };
-
-                process.Start();
+                Process.Start(new ProcessStartInfo(executablePath, $"\"{fileToOpen}\"") { UseShellExecute = true, });
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Nie udało się uruchomić procesu dla pliku: {fileToOpen}.\n{ex.Message}",
-                    "Błąd",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                MessageBox.Show($"Nie udało się uruchomić procesu dla pliku: {fileToOpen}.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1017,5 +1006,28 @@ public partial class MainWindow
         }
 
         this.PdfFiles.Insert(insertIndex, fileToAdd);
+    }
+
+    private void TextBoxDirectory_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        string dir = this._appSettings.LastUsedDirectory;
+
+        // Brak katalogu do otwarcia
+        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+        {
+            return;
+        }
+
+        try
+        {
+            // Otwórz Eksplorator Windows w podanym katalogu
+            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true, });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Nie udało się otworzyć Eksploratora Windows.\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        e.Handled = true; // Zaznacz zdarzenie jako obsłużone
     }
 }
