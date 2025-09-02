@@ -246,8 +246,6 @@ public partial class MainWindow
 
         try
         {
-            List<string> droppedFiles = [];
-
             HashSet<string> directories = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (string path in paths)
@@ -256,21 +254,12 @@ public partial class MainWindow
                 {
                     if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
                     {
-                        droppedFiles.Add(path);
-
                         directories.Add(Path.GetDirectoryName(path) ?? string.Empty);
                     }
                 }
                 else if (Directory.Exists(path))
                 {
-                    string[] filesInDirectory = Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly);
-
-                    if (filesInDirectory.Length > 0)
-                    {
-                        droppedFiles.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly));
-
-                        directories.Add(path);
-                    }
+                    directories.Add(path);
                 }
             }
 
@@ -305,11 +294,13 @@ public partial class MainWindow
 
             /* --------------------------------------- */
 
-            if (droppedFiles.Count > 0)
-            {
-                droppedFiles.Sort(this._naturalComparer);
+            List<string> pdfFiles = Directory.GetFiles(singleDirectory, "*.pdf", SearchOption.TopDirectoryOnly).ToList();
 
-                foreach (string file in droppedFiles)
+            if (pdfFiles.Count > 0)
+            {
+                pdfFiles.Sort(this._naturalComparer);
+
+                foreach (string file in pdfFiles)
                 {
                     this.PdfFiles.Add(new PdfFile(file));
                 }
@@ -564,8 +555,6 @@ public partial class MainWindow
                 else
                 {
                     MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                    Mouse.OverrideCursor = null; // Przywróć kursor
                 }
             }
             finally
