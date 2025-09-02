@@ -170,21 +170,31 @@ public partial class MainWindow
         // Sprawdź, czy jakikolwiek plik jest zaznaczony
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile && this.ListBoxFiles.SelectedItems.Count == 1)
         {
-            // Pobierz aktualne informacje o pliku z dysku
-            FileInfo fileInfo = new(selectedPdfFile.FilePath);
-
-            fileInfo.Refresh(); // Upewnij się, że dane są aktualne
-
-            // Sprawdź, czy plik istnieje i czy czas modyfikacji jest nowszy
-            if (fileInfo.Exists && fileInfo.LastWriteTime > selectedPdfFile.LastWriteTime)
+            try
             {
-                Debug.WriteLine($"Wykryto zmianę w pliku '{selectedPdfFile.FileName}' po odzyskaniu fokusu. Przeładowuję...");
+                // Pobierz aktualne informacje o pliku z dysku
+                FileInfo fileInfo = new(selectedPdfFile.FilePath);
 
-                // Plik został zmieniony, więc przeładuj podgląd
-                this.LoadPdfToView(selectedPdfFile);
+                fileInfo.Refresh(); // Upewnij się, że dane są aktualne
+
+                // Sprawdź, czy plik istnieje i czy czas modyfikacji jest nowszy
+                if (fileInfo.Exists && fileInfo.LastWriteTime > selectedPdfFile.LastWriteTime)
+                {
+                    Debug.WriteLine($"Wykryto zmianę w pliku '{selectedPdfFile.FileName}' po odzyskaniu fokusu. Przeładowuję...");
+
+                    // Plik został zmieniony, więc przeładuj podgląd
+                    this.LoadPdfToView(selectedPdfFile);
+                }
             }
-
-            this.FocusAndScrollToListBoxItem(selectedPdfFile);
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd podczas sprawdzania pliku w Window_Activated: {ex.Message}");
+            }
+            finally
+            {
+                // Zawsze upewnij się, że zaznaczony element ma fokus.
+                this.FocusAndScrollToListBoxItem(selectedPdfFile);
+            }
         }
     }
 
@@ -275,7 +285,7 @@ public partial class MainWindow
                 }
 
                 // Sortowanie plików w kolejności naturalnej
-                filesToLoad.Sort(new NaturalStringComparer());
+                filesToLoad.Sort(this._naturalComparer);
 
                 // Dodanie plików do ObservableCollection
                 foreach (string file in filesToLoad)
@@ -338,11 +348,11 @@ public partial class MainWindow
             return;
         }
 
+        Mouse.OverrideCursor = Cursors.Wait;
+
         // Spróbuj załadować do PdfViewer zaznczony plik
         try
         {
-            Mouse.OverrideCursor = Cursors.Wait;
-
             this._selectedPdfStream?.Dispose(); // Zwolnij poprzedni strumień, jeśli istnieje
 
             // Utwórz strumień w pamięci na podstawie wczytanych bajtów.
@@ -359,8 +369,15 @@ public partial class MainWindow
             this.PdfViewer.Unload();
 
             this._selectedPdfStream.Dispose();
-
-            Mouse.OverrideCursor = null;
+        }
+        finally
+        {
+            // Przywróć kursor na końcu, ale tylko jeśli ładowanie się nie powiodło.
+            // Jeśli się powiodło, kursor zostanie przywrócony w zdarzeniu DocumentLoaded.
+            if (!this.PdfViewer.IsLoaded)
+            {
+                Mouse.OverrideCursor = null;
+            }
         }
     }
 
@@ -907,8 +924,6 @@ public partial class MainWindow
             else // Jeśli katalog jest teraz pusty
             {
                 this.PdfViewer.Unload(true);
-
-                this._selectedPdfStream?.Dispose();
 
                 this.StatusBarItemInfo.Content = "Brak plików PDF w folderze.";
                 this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
