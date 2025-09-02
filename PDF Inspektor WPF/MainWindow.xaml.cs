@@ -228,17 +228,15 @@ public partial class MainWindow
             InitialDirectory = this._appSettings.LastUsedDirectory,
         };
 
-        // Jeśli użytkownik anulował wybór, zakończ działanie funkcji
-        if (dialog.ShowDialog() != true)
+        // Jeśli użytkownik wybrał katalog
+        if (dialog.ShowDialog() == true)
         {
-            return;
+            // Załaduj istniejące pliki z wybranego folderu
+            this.LoadFiles([dialog.FolderName]);
+
+            // Zapisz wybrany katalog jako ostatnio używany
+            this._appSettings.LastUsedDirectory = dialog.FolderName;
         }
-
-        // Załaduj istniejące pliki z wybranego folderu
-        this.LoadFiles([dialog.FolderName]);
-
-        // Zapisz wybrany katalog jako ostatnio używany
-        this._appSettings.LastUsedDirectory = dialog.FolderName;
     }
 
     // Funkcja ładująca pliki PDF z podanych ścieżek
@@ -248,20 +246,35 @@ public partial class MainWindow
 
         try
         {
-            // Weryfikacja, czy wszystkie ścieżki pochodzą z jednego katalogu
+            List<string> droppedFiles = [];
+
             HashSet<string> directories = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (string path in paths)
             {
                 if (File.Exists(path))
                 {
-                    directories.Add(Path.GetDirectoryName(path) ?? string.Empty);
+                    if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        droppedFiles.Add(path);
+
+                        directories.Add(Path.GetDirectoryName(path) ?? string.Empty);
+                    }
                 }
                 else if (Directory.Exists(path))
                 {
-                    directories.Add(path);
+                    string[] filesInDirectory = Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly);
+
+                    if (filesInDirectory.Length > 0)
+                    {
+                        droppedFiles.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly));
+
+                        directories.Add(path);
+                    }
                 }
             }
+
+            directories.RemoveWhere(string.IsNullOrEmpty);
 
             if (directories.Count > 1)
             {
@@ -270,30 +283,33 @@ public partial class MainWindow
                 return;
             }
 
-            string singleDirectory = directories.First();
+            string? singleDirectory = directories.FirstOrDefault();
 
-            // Krok 1: Ustaw tekst i zapisz katalog PRZED czyszczeniem i ładowaniem plików.
-            // Dzięki temu nazwa folderu pozostanie widoczna, nawet jeśli będzie pusty.
+            if (string.IsNullOrEmpty(singleDirectory))
+            {
+                return; // Brak prawidłowych plików lub folderów
+            }
+
             this._appSettings.LastUsedDirectory = singleDirectory;
 
             this.TextBoxDirectory.Text = Path.GetFileName(singleDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
-            // Czyszczenie starych danych
+            /* --------------------------------------- */
+
+            // Czyszczenie
             this.PdfViewer.Unload(true);
 
             this._selectedPdfStream?.Dispose();
 
             this.PdfFiles.Clear();
 
-            // Ładowanie plików TYLKO z tego jednego, zweryfikowanego katalogu
-            List<string> filesToLoad = [.. Directory.GetFiles(singleDirectory, "*.pdf", SearchOption.TopDirectoryOnly)];
+            /* --------------------------------------- */
 
-            if (filesToLoad.Count > 0)
+            if (droppedFiles.Count > 0)
             {
-                // Sortowanie i dodawanie plików do listy
-                filesToLoad.Sort(this._naturalComparer);
+                droppedFiles.Sort(this._naturalComparer);
 
-                foreach (string file in filesToLoad)
+                foreach (string file in droppedFiles)
                 {
                     this.PdfFiles.Add(new PdfFile(file));
                 }
@@ -698,9 +714,17 @@ public partial class MainWindow
                 string newFileName = dialog.NewFileName.Trim();
 
                 // Walidacja nowej nazwy
-                if (string.IsNullOrWhiteSpace(newFileName) || newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || newFileName == originalFileName)
+                if (string.IsNullOrWhiteSpace(newFileName) || newFileName == originalFileName)
                 {
-                    return; // Nazwa nieprawidłowa lub się nie zmieniła
+                    return; // Nazwa pusta lub się nie zmieniła - ciche wyjście jest OK.
+                }
+
+                // jeśli nazwa zawiera niedozwolone znaki
+                if (newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                {
+                    MessageBox.Show("Nowa nazwa pliku zawiera niedozwolone znaki.", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    return;
                 }
 
                 if (Path.GetExtension(newFileName) != ".pdf")
@@ -898,31 +922,18 @@ public partial class MainWindow
     {
         if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
         {
-            // Przechowaj ID aktualnie zaznaczonego pliku
-            string? selectedFilePath = this.SelectedPdfFile?.FilePath;
+            string? selectedFilePath = this.SelectedPdfFile?.FilePath; // Zapamiętaj ścieżkę zaznaczonego pliku, jeśli istnieje
 
-            // Załaduj ponownie pliki z ostatnio używanego katalogu
-            this.LoadFiles([this._appSettings.LastUsedDirectory]);
+            this.LoadFiles([this._appSettings.LastUsedDirectory]); // Przeładuj pliki z ostatnio używanego katalogu
 
-            if (this.PdfFiles.Any()) // Jeśli po odświeżeniu są jakiekolwiek pliki
+            if (selectedFilePath != null)
             {
-                // Spróbuj przywrócić zaznaczenie
-                if (selectedFilePath != null)
+                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == selectedFilePath);
+
+                if (fileToSelect != null)
                 {
-                    PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == selectedFilePath);
-
-                    if (fileToSelect != null)
-                    {
-                        this.FocusAndScrollToListBoxItem(fileToSelect);
-                    }
+                    this.FocusAndScrollToListBoxItem(fileToSelect);
                 }
-            }
-            else // Jeśli katalog jest teraz pusty
-            {
-                this.PdfViewer.Unload(true);
-
-                this.StatusBarItemInfo.Content = "Brak plików PDF w folderze.";
-                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
             }
         }
         else
