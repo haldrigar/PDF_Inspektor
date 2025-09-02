@@ -53,7 +53,7 @@ internal class AppSettings
     /// <summary>
     /// Pobiera lub ustawia ostatnio używany plik PDF.
     /// </summary>
-    public string LasUsedFilePath { get; set; } = string.Empty;
+    public string LastUsedFilePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Pobiera klucz licencyjny Syncfusion.

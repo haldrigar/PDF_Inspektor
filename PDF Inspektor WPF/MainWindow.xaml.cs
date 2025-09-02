@@ -93,7 +93,7 @@ public partial class MainWindow
             if (this.PdfFiles.Count > 0)
             {
                 // Spróbuj przywrócić zaznaczenie
-                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == this._appSettings.LasUsedFilePath);
+                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == this._appSettings.LastUsedFilePath);
 
                 // Ustawienie zaznaczenia na znaleziony plik lub na pierwszy plik na liście
                 this.FocusAndScrollToListBoxItem(fileToSelect ?? this.PdfFiles.First());
@@ -235,68 +235,67 @@ public partial class MainWindow
     {
         Mouse.OverrideCursor = Cursors.Wait; // Ustaw kursor na "czekanie"
 
-        /* ------------------------------------------------------ */
-        this.PdfFiles.Clear(); // Wyczyść istniejącą listę plików
-
-        this.PdfViewer.Unload(true); // Wyczyść widok PdfViewer
-
-        this._selectedPdfStream?.Dispose(); // Zwolnij poprzedni strumień, jeśli istnieje
-        /* ------------------------------------------------------ */
-
-        List<string> filesToLoad = []; // Lista plików do załadowania
-
-        // Przetwarzanie każdej ścieżki
-        foreach (string path in paths)
+        try
         {
-            // Sprawdzenie, czy ścieżka jest plikiem PDF lub katalogiem
-            if (File.Exists(path) && path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) // Pojedynczy plik PDF
+            /* ------------------------------------------------------ */
+            this.PdfViewer.Unload(true); // Wyczyść podgląd PDF
+
+            this._selectedPdfStream?.Dispose(); // Zwolnij poprzedni strumień, jeśli istnieje
+
+            this.PdfFiles.Clear(); // Wyczyść istniejącą listę plików
+            /* ------------------------------------------------------ */
+
+            List<string> filesToLoad = []; // Lista plików do załadowania
+
+            // Przetwarzanie każdej ścieżki
+            foreach (string path in paths)
             {
-                filesToLoad.Add(path);
+                // Sprawdzenie, czy ścieżka jest plikiem PDF lub katalogiem
+                if (File.Exists(path) && path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) // Pojedynczy plik PDF
+                {
+                    filesToLoad.Add(path);
+                }
+                else if (Directory.Exists(path)) // Katalog
+                {
+                    filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly)); // Rekursywnie dodaj wszystkie pliki PDF z katalogu
+                }
             }
-            else if (Directory.Exists(path)) // Katalog
+
+            // Jeśli lista plików do załadowania nie jest pusta
+            if (filesToLoad.Count > 0)
             {
-                filesToLoad.AddRange(Directory.GetFiles(path, "*.pdf", SearchOption.TopDirectoryOnly)); // Rekursywnie dodaj wszystkie pliki PDF z katalogu
+                // sprawdzenie czy wszystkie pliki pochodzą z jednego katalogu
+                int uniqueDirectoryCount = filesToLoad.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+
+                if (uniqueDirectoryCount > 1) // jeśli pliki pochodzą z więcej niż jednego katalogu
+                {
+                    MessageBox.Show("Wszystkie pliki muszą pochodzić z jednego folderu!", "Sprawdzenie ilości folderów", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+
+                    return;
+                }
+
+                // Sortowanie plików w kolejności naturalnej
+                filesToLoad.Sort(new NaturalStringComparer());
+
+                // Dodanie plików do ObservableCollection
+                foreach (string file in filesToLoad)
+                {
+                    this.PdfFiles.Add(new PdfFile(file));
+                }
+
+                // Ustaw ostatnio używany katalog na pierwszy katalog z listy. Będzie i tak jeden katalog, bo ładujemy z jednego katalogu lub z jednego upuszczonego katalogu.
+                this._appSettings.LastUsedDirectory = this.PdfFiles.First().DirectoryName;
+
+                // Aktualizuj TextBox z katalogiem
+                this.TextBoxDirectory.Text = Path.GetFileName(this.PdfFiles.First().DirectoryName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+                // Zaznacz pierwszy plik z listy
+                this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
             }
         }
-
-        // Jeśli lista plików do załadowania nie jest pusta
-        if (filesToLoad.Count > 0)
+        finally
         {
-            // sprawdzenie czy wszystkie pliki pochodzą z jednego katalogu
-            int uniqueDirectoryCount = filesToLoad.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-
-            if (uniqueDirectoryCount > 1) // jeśli pliki pochodzą z więcej niż jednego katalogu
-            {
-                Mouse.OverrideCursor = null;
-
-                MessageBox.Show("Wszystkie pliki muszą pochodzić z jednego folderu!", "Sprawdzenie ilości folderów", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-
-                return;
-            }
-
-            // Sortowanie plików w kolejności naturalnej
-            filesToLoad.Sort(new NaturalStringComparer());
-
-            // Dodanie plików do ObservableCollection
-            foreach (string file in filesToLoad)
-            {
-                this.PdfFiles.Add(new PdfFile(file));
-            }
-
-            // Ustaw ostatnio używany katalog na pierwszy katalog z listy. Będzie i tak jeden katalog, bo ładujemy z jednego katalogu lub z jednego upuszczonego katalogu.
-            this._appSettings.LastUsedDirectory = this.PdfFiles.First().DirectoryName;
-
-            // Aktualizuj TextBox z katalogiem
-            this.TextBoxDirectory.Text = Path.GetFileName(this.PdfFiles.First().DirectoryName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
-            // Zaznacz pierwszy plik z listy
-            this.FocusAndScrollToListBoxItem(this.PdfFiles.First());
-
-            // Przywrócenie kursora jest tu nie potrzebne. Zajmie się tym DocumentLoaded po załadowaniu pierwszego pliku.
-        }
-        else // Jeśli lista jest pusta, wyczyść widok PdfViewer
-        {
-            Mouse.OverrideCursor = null;
+            Mouse.OverrideCursor = null; // Przywróć kursor
         }
     }
 
@@ -382,7 +381,7 @@ public partial class MainWindow
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
             // Zapisz ścieżkę ostatnio używanego pliku
-            this._appSettings.LasUsedFilePath = selectedPdfFile.FilePath;
+            this._appSettings.LastUsedFilePath = selectedPdfFile.FilePath;
 
             // Pobierz aktualne informacje o pliku, ponieważ mamy pewność, że istnieje i jest dostępny.
             FileInfo fileInfo = new(selectedPdfFile.FilePath);
@@ -521,21 +520,28 @@ public partial class MainWindow
         {
             Mouse.OverrideCursor = Cursors.Wait;
 
-            // Obróć i zapisz zmiany w pliku PDF
-            bool success = PDFTools.RotateAndSave(this.PdfViewer.LoadedDocument, selectedPdfFile.FilePath, rotateRight);
-
-            if (success)
+            try
             {
-                // Po udanej operacji obrotu i zapisu musimy ręcznie przeładować widok.
-                this.LoadPdfToView(selectedPdfFile);
+                // Obróć i zapisz zmiany w pliku PDF
+                bool success = PDFTools.RotateAndSave(this.PdfViewer.LoadedDocument, selectedPdfFile.FilePath, rotateRight);
 
-                // przywrócenie kursora jest w DocumentLoaded, który i tak zostanie wywołany po LoadPdfToView
+                if (success)
+                {
+                    // Po udanej operacji obrotu i zapisu musimy ręcznie przeładować widok.
+                    this.LoadPdfToView(selectedPdfFile);
+
+                    // przywrócenie kursora jest w DocumentLoaded, który i tak zostanie wywołany po LoadPdfToView
+                }
+                else
+                {
+                    MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    Mouse.OverrideCursor = null; // Przywróć kursor
+                }
             }
-            else
+            finally
             {
-                MessageBox.Show("Nie udało się obrócić i zapisać pliku.", "Błąd operacji", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                Mouse.OverrideCursor = null; // Przywróć kursor
+                Mouse.OverrideCursor = null; // Przywróć kursor na wszelki wypadek
             }
         }
     }
@@ -885,15 +891,27 @@ public partial class MainWindow
             // Załaduj ponownie pliki z ostatnio używanego katalogu
             this.LoadFiles([this._appSettings.LastUsedDirectory]);
 
-            // Spróbuj przywrócić zaznaczenie
-            if (selectedFilePath != null)
+            if (this.PdfFiles.Any()) // Jeśli po odświeżeniu są jakiekolwiek pliki
             {
-                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == selectedFilePath);
-
-                if (fileToSelect != null)
+                // Spróbuj przywrócić zaznaczenie
+                if (selectedFilePath != null)
                 {
-                    this.FocusAndScrollToListBoxItem(fileToSelect);
+                    PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == selectedFilePath);
+
+                    if (fileToSelect != null)
+                    {
+                        this.FocusAndScrollToListBoxItem(fileToSelect);
+                    }
                 }
+            }
+            else // Jeśli katalog jest teraz pusty
+            {
+                this.PdfViewer.Unload(true);
+
+                this._selectedPdfStream?.Dispose();
+
+                this.StatusBarItemInfo.Content = "Brak plików PDF w folderze.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
             }
         }
         else
