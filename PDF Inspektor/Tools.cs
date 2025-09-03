@@ -120,7 +120,7 @@ internal static class Tools
 
             string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
 
-            foreach (var netFile in Directory.GetFiles(networkPath))
+            foreach (string netFile in Directory.GetFiles(networkPath))
             {
                 string fileName = Path.GetFileName(netFile);
 
@@ -153,9 +153,17 @@ internal static class Tools
 
         string updaterExePath = Path.Combine(localPath, "PDF_Inspektor_Updater.exe"); // Ścieżka do programu aktualizującego
 
-        if (!File.Exists(updaterExePath))
+        try // Kopiowanie pliku aktualizatora na wypadek, gdyby był stary lub go nie było
         {
-            MessageBox.Show("Brak pliku PDF_Inspektor_Updater.exe w katalogu aplikacji!\nProgram nie zostanie zaktualizowany do nowszej wersji.", "Błąd aktualizacji", MessageBoxButton.OK, MessageBoxImage.Error);
+            File.Copy(Path.Combine(networkPath, "PDF_Inspektor_Updater.exe"), updaterExePath, true);
+        }
+        catch (Exception e)
+        {
+            MessageBox.Show(
+                $"Nie można skopiować aktualizatora programu! Aktualizacja niemożliwa.\n{e.Message}",
+                "Aktualziacja programu",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
 
             return;
         }
@@ -164,7 +172,7 @@ internal static class Tools
 
         if (processModule != null)
         {
-            string exePath = processModule.FileName;
+            string exePath = processModule.FileName; // Pełna ścieżka do pliku wykonywalnego bieżącej aplikacji, aby przekazać ją do aktualizatora i ponownie ją uruchomić po aktualizacji
 
             ProcessStartInfo startInfo = new(updaterExePath) { ArgumentList = { networkPath, localPath, exePath } };
 

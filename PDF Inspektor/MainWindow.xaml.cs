@@ -5,6 +5,8 @@
 // </copyright>
 // ====================================================================================================
 
+using System.Windows.Threading;
+
 namespace PDF_Inspektor;
 
 using System.Collections.ObjectModel;
@@ -72,7 +74,7 @@ public partial class MainWindow
     // Funkcje obsługująca uruchomienie okna
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        Mouse.OverrideCursor = Cursors.Wait; // Ustaw kursor na "czekanie"
+        Mouse.OverrideCursor = Cursors.Wait;
 
         this.Top = this._appSettings.WindowTop;
         this.Left = this._appSettings.WindowLeft;
@@ -85,34 +87,48 @@ public partial class MainWindow
         // Sprawdź, czy dostępna jest aktualizacja
         if (Tools.IsUpdateAvailable())
         {
+            MessageBox.Show(
+                "Wykryto aktualizację programu!\n\nProgram zostanie zamknięty, a po aktualizacji uruchomiony ponownie.",
+                "Aktualizacja programu",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
             Tools.RunUpdaterAndExit();
+
+            return; // Zakończ działanie, ponieważ aplikacja zostanie zamknięta
         }
 
-        // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
-        foreach (ExternalTool tool in this._appSettings.Tools)
-        {
-            // Rozpakuj narzędzie, jeśli to konieczne
-            Tools.EnsureAndUnpackTool(tool);
-        }
-
-        // Załadowanie plików z ostatnio używanego katalogu, jeśli istnieje.
-        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
-        {
-            // Załaduj pliki z ostatnio używanego katalogu
-            this.LoadFiles([this._appSettings.LastUsedDirectory]);
-
-            // jeśli udało się załadować pliki
-            if (this.PdfFiles.Count > 0)
+        // Asynchroniczne wywołanie na wątku UI, ale z niskim priorytetem, aby nie blokować ładowania okna
+        this.Dispatcher.InvokeAsync(
+            () =>
             {
-                // Spróbuj przywrócić zaznaczenie
-                PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == this._appSettings.LastUsedFilePath);
+                // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
+                foreach (ExternalTool tool in this._appSettings.Tools)
+                {
+                    // Rozpakuj narzędzie, jeśli to konieczne
+                    Tools.EnsureAndUnpackTool(tool);
+                }
 
-                // Ustawienie zaznaczenia na znaleziony plik lub na pierwszy plik na liście
-                this.FocusAndScrollToListBoxItem(fileToSelect ?? this.PdfFiles.First());
-            }
-        }
+                // Załadowanie plików z ostatnio używanego katalogu, jeśli istnieje.
+                if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
+                {
+                    // Załaduj pliki z ostatnio używanego katalogu
+                    this.LoadFiles([this._appSettings.LastUsedDirectory]);
 
-        Mouse.OverrideCursor = null;
+                    // jeśli udało się załadować pliki
+                    if (this.PdfFiles.Count > 0)
+                    {
+                        // Spróbuj przywrócić zaznaczenie
+                        PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == this._appSettings.LastUsedFilePath);
+
+                        // Ustawienie zaznaczenia na znaleziony plik lub na pierwszy plik na liście
+                        this.FocusAndScrollToListBoxItem(fileToSelect ?? this.PdfFiles.First());
+                    }
+                }
+
+                Mouse.OverrideCursor = null;
+            },
+            DispatcherPriority.ContextIdle);
     }
 
     // Funkcja obsługująca zamknięcie okna
@@ -714,13 +730,14 @@ public partial class MainWindow
                     lbi.Focus();
                 }
             },
-            System.Windows.Threading.DispatcherPriority.Input);
+            DispatcherPriority.ContextIdle);
     }
 
     // Obsługa zmiany nazwy pliku
     private void RenameSelectedFile()
     {
-        if (this.ListBoxFiles.SelectedItems.Count != 1)
+        // Sprawdź, czy zaznaczony jest dokładnie jeden element
+        if (this.ListBoxFiles.SelectedItems.Count != 1) 
         {
             this.StatusBarItemInfo.Content = "Zmiana nazwy wymaga zaznaczenia jednego pliku.";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
@@ -728,63 +745,116 @@ public partial class MainWindow
             return;
         }
 
-        if (this.ListBoxFiles.SelectedItem is PdfFile pdfToRename)
+        // Sprawdź, czy zaznaczony element jest typu PdfFile
+        if (this.ListBoxFiles.SelectedItem is not PdfFile pdfToRename) 
         {
-            string originalFileName = pdfToRename.FileName;
+            return;
+        }
 
-            // Utwórz i pokaż okno dialogowe
-            RenameWindow dialog = new(originalFileName)
+        string currentName = pdfToRename.FileName; // Aktualna nazwa pliku
+
+        bool overwrite = false;
+
+        while (true)
+        {
+            RenameWindow dialog = new(currentName) { Owner = this };
+
+            // Użytkownik anulował okno zmiany nazwy
+            if (dialog.ShowDialog() != true)
             {
-                Owner = this, // Ustaw właściciela, aby okno pojawiło się na środku aplikacji
-            };
+                return;
+            }
 
-            // Jeśli użytkownik kliknął "OK"
-            if (dialog.ShowDialog() == true)
+            string newFileName = dialog.NewFileName.Trim(); // Nowa nazwa pliku bez białych znaków
+
+            // Walidacja: nazwa pusta lub się nie zmieniła
+            if (string.IsNullOrWhiteSpace(newFileName) || newFileName.Equals(pdfToRename.FileName, StringComparison.OrdinalIgnoreCase))
             {
-                string newFileName = dialog.NewFileName.Trim();
+                continue; // Pokaż dialog ponownie
+            }
 
-                // Walidacja nowej nazwy
-                if (string.IsNullOrWhiteSpace(newFileName) || newFileName == originalFileName)
+            // Walidacja: niedozwolone znaki
+            if (newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                MessageBox.Show("Nowa nazwa pliku zawiera niedozwolone znaki.", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                currentName = newFileName; // Pozwól użytkownikowi edytować nieprawidłową nazwę
+
+                continue; // Pokaż dialog ponownie
+            }
+
+            // Dodaj rozszerzenie .pdf, jeśli go brakuje
+            if (!Path.HasExtension(newFileName) || !Path.GetExtension(newFileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                newFileName += ".pdf";
+            }
+
+            string newFilePath = Path.Combine(pdfToRename.DirectoryName, newFileName); // Nowa pełna ścieżka pliku
+
+            // Sprawdź, czy plik o nowej nazwie już istnieje i czy nie jest to ten sam plik
+            if (File.Exists(newFilePath) && !newFilePath.Equals(pdfToRename.FilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBoxResult result = MessageBox.Show("Plik o takiej nazwie już istnieje! Czy chcesz go nadpisać?", "Plik istnieje", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+
+                switch (result)
                 {
-                    return; // Nazwa pusta lub się nie zmieniła - ciche wyjście jest OK.
+                    case MessageBoxResult.Yes:
+                    {
+                        overwrite = true; // Użytkownik chce nadpisać
+
+                        break;
+                    }
+
+                    case MessageBoxResult.No:
+                    {
+                        currentName = newFileName; // Ustaw nową nazwę do edycji
+
+                        continue; // Wróć do pętli, aby ponownie otworzyć okno zmiany nazwy
+                    }
+
+                    case MessageBoxResult.Cancel:
+                    {
+                        return; // Użytkownik anulował całą operację
+                    }
+                }
+            }
+
+            // Jeśli doszliśmy tutaj, albo plik nie istnieje, albo użytkownik zgodził się na nadpisanie
+            try
+            {
+                // Jeśli nadpisujemy, najpierw usuń stary plik z listy UI
+                if (overwrite)
+                {
+                    // Znajdź plik, który będzie nadpisany
+                    PdfFile? fileToOverwrite = this.PdfFiles.FirstOrDefault(f => f.FilePath.Equals(newFilePath, StringComparison.OrdinalIgnoreCase));
+
+                    // Jeśli taki plik istnieje na liście
+                    if (fileToOverwrite != null)
+                    {
+                        this.PdfFiles.Remove(fileToOverwrite);
+                    }
                 }
 
-                // jeśli nazwa zawiera niedozwolone znaki
-                if (newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                {
-                    MessageBox.Show("Nowa nazwa pliku zawiera niedozwolone znaki.", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                // Zmień nazwę pliku na dysku
+                File.Move(pdfToRename.FilePath, newFilePath, overwrite);
 
-                    return;
-                }
+                // Aktualizacja listy plików w UI
+                this.PdfFiles.Remove(pdfToRename);
 
-                if (Path.GetExtension(newFileName) != ".pdf")
-                {
-                    newFileName += ".pdf";
-                }
+                pdfToRename.FileName = newFileName;
+                pdfToRename.FilePath = newFilePath;
 
-                string newFilePath = Path.Combine(pdfToRename.DirectoryName, newFileName);
+                this.AddAndSortFile(pdfToRename);
 
-                try
-                {
-                    // Zmień nazwę pliku na dysku.
-                    File.Move(pdfToRename.FilePath, newFilePath);
+                this.FocusAndScrollToListBoxItem(pdfToRename);
 
-                    // Usuń stary obiekt z listy.
-                    this.PdfFiles.Remove(pdfToRename);
+                return; // Sukces, zakończ pętlę i metodę
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się zmienić nazwy pliku.\nBłąd: {ex.Message}", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Error);
 
-                    pdfToRename.FileName = newFileName; // Zaktualizuj nazwę w obiekcie PdfFile
-                    pdfToRename.FilePath = newFilePath; // Zaktualizuj ścieżkę w obiekcie PdfFile
-
-                    // Dodaj zaktualizowany obiekt z powrotem do listy, używając metody sortującej.
-                    this.AddAndSortFile(pdfToRename);
-
-                    // Ustaw fokus na nowo posortowanym elemencie.
-                    this.FocusAndScrollToListBoxItem(pdfToRename);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Nie udało się zmienić nazwy pliku.\nBłąd: {ex.Message}", "Błąd zmiany nazwy", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                return; // Zakończ w przypadku błędu
             }
         }
     }

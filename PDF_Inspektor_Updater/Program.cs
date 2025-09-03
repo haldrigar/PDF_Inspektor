@@ -13,24 +13,35 @@ public static class Program
 {
     private static int Main(string[] args)
     {
-        /*if (!Debugger.IsAttached)
-        {
-            Debugger.Launch();
-        }*/
-
-        if (args.Length < 3)
-        {
-            Console.WriteLine("Za mało argumentów!");
-            return 1;
-        }
+        //if (!Debugger.IsAttached)
+        //{
+        //    Debugger.Launch();
+        //}
 
         string updatePath = args[0];
         string localPath = args[1];
         string mainExeFile = args[2];
 
+        Console.WriteLine("PDF Inspektor Updater");
+        Console.WriteLine("=====================\n");
+
+        if (args.Length != 3)
+        {
+            Console.WriteLine("Program można wywołać tylko z aplikacji głównej!");
+
+            return 1; // Zwróć kod błędu
+        }
+
+        Console.WriteLine($"Ścieżka źródłowa aktualizacji: {updatePath}\n");
+        Console.WriteLine($"Lokalna ścieżka aplikacji: {localPath}\n");
+        Console.WriteLine("Rozpoczynanie aktualizacji...\n");
+
         try
         {
-            foreach (Process proc in Process.GetProcessesByName("PDF_Inspektor"))
+            string mainExeFileName = Path.GetFileNameWithoutExtension(mainExeFile); // Nazwa pliku głównej aplikacji bez rozszerzenia
+
+            // Czekaj i zamknij wszystkie istniejące procesy głównej aplikacji
+            foreach (Process proc in Process.GetProcessesByName(mainExeFileName))
             {
                 try
                 {
@@ -39,36 +50,51 @@ public static class Program
                 }
                 catch
                 {
-                    // ignored
+                    // Ignoruj błędy, jeśli proces już się zakończył
                 }
             }
 
+            // Daj systemowi chwilę na zwolnienie plików
             Thread.Sleep(1000);
 
-            foreach (string updateFilePath in Directory.GetFiles(updatePath, "*.*", SearchOption.AllDirectories))
+            // Pobierz wszystkie pliki ze źródła aktualizacji, włączając podfoldery
+            foreach (string sourceFilePath in Directory.GetFiles(updatePath, "*.*", SearchOption.AllDirectories))
             {
-                string updateFileName = Path.GetFileName(updateFilePath);
+                // Utwórz ścieżkę względną, aby zachować strukturę folderów
+                string relativePath = Path.GetRelativePath(updatePath, sourceFilePath);
 
-                string localFilePath = Path.Combine(localPath, updateFileName);
+                // Zbuduj pełną ścieżkę docelową w folderze lokalnym
+                string destinationFilePath = Path.Combine(localPath, relativePath);
 
-                if (!File.Exists(localFilePath) || File.GetLastWriteTime(updateFilePath) > File.GetLastWriteTime(localFilePath))
+                // Sprawdź, czy plik docelowy nie istnieje lub plik źródłowy jest nowszy
+                if (!File.Exists(destinationFilePath) || File.GetLastWriteTime(sourceFilePath) > File.GetLastWriteTime(destinationFilePath))
                 {
-                    File.Copy(updateFilePath, localFilePath, true);
+                    // Upewnij się, że folder docelowy istnieje
+                    string? destinationDirectory = Path.GetDirectoryName(destinationFilePath);
 
-                    Console.WriteLine($"Zaktualizowano: {updateFileName}");
+                    if (destinationDirectory != null && !Directory.Exists(destinationDirectory))
+                    {
+                        Directory.CreateDirectory(destinationDirectory);
+                    }
+
+                    // Skopiuj plik, nadpisując istniejący
+                    File.Copy(sourceFilePath, destinationFilePath, true);
+
+                    Console.WriteLine($"Zaktualizowano: {relativePath}");
                 }
             }
 
-            Console.WriteLine("Aktualizacja zakończona pomyślnie.");
-            Console.WriteLine("Naciśnij dowolny klawisz, aby uruchomić program...");
-            Console.ReadKey(false);
+            Console.WriteLine("\nAktualizacja zakończona pomyślnie.\n");
 
-            // Uruchom program główny
+            // Uruchom ponownie główną aplikację
             Process.Start(mainExeFile);
         }
         catch (Exception ex)
         {
             Console.WriteLine("Błąd podczas aktualizacji: " + ex.Message);
+            Console.WriteLine("Naciśnij dowolny klawisz, aby zakończyć...");
+
+            Console.ReadKey(false);
 
             return 2; // Zwróć kod błędu
         }
