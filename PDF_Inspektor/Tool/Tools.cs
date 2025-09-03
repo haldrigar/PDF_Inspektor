@@ -112,29 +112,33 @@ internal static class Tools
     /// <returns>Zwraca true jeśli aktualizacja jest dostepna.</returns>
     public static bool IsUpdateAvailable()
     {
-        try
+        string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
+
+        AppSettings settings = AppSettings.Load(); // Wczytanie ustawień aplikacji
+
+        string updatePath = settings.UpdatePath; // Ścieżka sieciowa do sprawdzenia aktualizacji
+
+        if (Directory.Exists(updatePath))
         {
-            AppSettings settings = AppSettings.Load(); // Wczytanie ustawień aplikacji
-
-            string networkPath = settings.UpdateNetworkPath; // Ścieżka sieciowa do sprawdzenia aktualizacji
-
-            string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
-
-            foreach (string netFile in Directory.GetFiles(networkPath))
+            try
             {
-                string fileName = Path.GetFileName(netFile);
-
-                string localFile = Path.Combine(localPath, fileName);
-
-                if (!File.Exists(localFile) || File.GetLastWriteTimeUtc(netFile) > File.GetLastWriteTimeUtc(localFile))
+                foreach (string updateFilePath in Directory.GetFiles(updatePath))
                 {
-                    return true;
+                    string fileName = Path.GetFileName(updateFilePath);
+
+                    string localFile = Path.Combine(localPath, fileName);
+
+                    if (!File.Exists(localFile) || File.GetLastWriteTimeUtc(updateFilePath) > File.GetLastWriteTimeUtc(localFile))
+                    {
+                        return true;
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show("Błąd sprawdzania aktualizacji: " + ex.Message);
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd sprawdzania aktualizacji: " + ex.Message);
+            }
+            
         }
 
         return false;
@@ -147,7 +151,7 @@ internal static class Tools
     {
         AppSettings settings = AppSettings.Load();
 
-        string networkPath = settings.UpdateNetworkPath; // Ścieżka sieciowa do sprawdzenia aktualizacji
+        string networkPath = settings.UpdatePath; // Ścieżka sieciowa do sprawdzenia aktualizacji
 
         string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
 

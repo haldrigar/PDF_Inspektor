@@ -48,7 +48,7 @@ internal class AppSettings
     /// <summary>
     /// Pobiera lub ustawia ścieżkę sieciową do aktualizacji aplikacji.
     /// </summary>
-    public string UpdateNetworkPath { get; set; } = @"\\192.168.0.40\Aplikacje\PDF_Inspektor\";
+    public string UpdatePath { get; set; } = @"\\192.168.0.40\Aplikacje\PDF_Inspektor\";
 
     /// <summary>
     /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
