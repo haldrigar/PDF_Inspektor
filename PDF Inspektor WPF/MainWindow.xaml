@@ -12,7 +12,9 @@
         Height="600" 
         Width="1200" 
         Loaded="Window_Loaded"
-        Closed="Window_Closed" SizeChanged="Window_SizeChanged" Activated="Window_Activated">
+        Closed="Window_Closed" 
+        SizeChanged="Window_SizeChanged" 
+        Activated="Window_Activated">
     <Grid>
 
         <Grid.RowDefinitions>

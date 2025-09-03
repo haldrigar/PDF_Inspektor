@@ -3,5 +3,6 @@
   "WindowTop": 100,
   "WindowLeft": 100,
   "WindowWidth": 1200,
-  "WindowHeight": 600
+  "WindowHeight": 600,
+  "UpdateNetworkPath": "\\\\192.168.0.40\\Aplikacje\\PDF_Inspektor\\"
 }

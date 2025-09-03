@@ -46,6 +46,11 @@ internal class AppSettings
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
+    /// Pobiera lub ustawia ścieżkę sieciową do aktualizacji aplikacji.
+    /// </summary>
+    public string UpdateNetworkPath { get; set; } = @"\\192.168.0.40\Aplikacje\PDF_Inspektor\";
+
+    /// <summary>
     /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
     /// </summary>
     public string LastUsedDirectory { get; set; } = string.Empty;
@@ -106,6 +111,7 @@ internal class AppSettings
             {
                 // W przypadku błędu odczytu lub deserializacji utwórz domyślne ustawienia
                 System.Diagnostics.Debug.WriteLine($"Błąd podczas wczytywania ustawień: {ex.Message}");
+
                 return CreateDefault();
             }
         }

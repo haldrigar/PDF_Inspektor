@@ -21,7 +21,7 @@ public partial class App
     /// </summary>
     public App()
     {
-        RegisterSyncfusionLicense();
+        Tools.RegisterSyncfusionLicense(); // Rejestracja licencji Syncfusion
 
         this.DispatcherUnhandledException += (_, e) =>
         {
@@ -29,22 +29,5 @@ public partial class App
 
             e.Handled = true;
         };
-    }
-
-    private static void RegisterSyncfusionLicense()
-    {
-        var settings = AppSettings.Load();
-
-        if (string.IsNullOrEmpty(settings.SyncfusionLicenseKey) || settings.SyncfusionLicenseKey == "SyncfusionLicenseKey")
-        {
-            MessageBox.Show("Klucz licencyjny Syncfusion nie został skonfigurowany w pliku appsettings.json. Aplikacja zostanie zamknięta.", "Brak klucza licencyjnego", MessageBoxButton.OK, MessageBoxImage.Error);
-
-            // Zakończ aplikację, jeśli klucz jest nieprawidłowy
-            Application.Current.Shutdown();
-
-            return;
-        }
-
-        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(settings.SyncfusionLicenseKey);
     }
 }

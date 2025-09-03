@@ -7,6 +7,7 @@
 
 namespace PDF_Inspektor;
 
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Windows;
@@ -83,5 +84,93 @@ internal static class Tools
         {
             MessageBox.Show($"Wystąpił błąd podczas rozpakowywania {tool.Name}.\n{ex.Message}", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// Funkcja rejestrująca klucz licencyjny Syncfusion.
+    /// </summary>
+    public static void RegisterSyncfusionLicense()
+    {
+        AppSettings settings = AppSettings.Load();
+
+        if (string.IsNullOrEmpty(settings.SyncfusionLicenseKey) || settings.SyncfusionLicenseKey == "SyncfusionLicenseKey")
+        {
+            MessageBox.Show("Klucz licencyjny Syncfusion nie został skonfigurowany. Aplikacja zostanie zamknięta.", "Brak klucza licencyjnego", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            // Zakończ aplikację, jeśli klucz jest nieprawidłowy
+            Application.Current.Shutdown();
+
+            return;
+        }
+
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(settings.SyncfusionLicenseKey);
+    }
+
+    /// <summary>
+    /// Funkcja sprawdzająca, czy dostępna jest nowsza wersja aplikacji w określonej lokalizacji sieciowej.
+    /// </summary>
+    /// <returns>Zwraca true jeśli aktualizacja jest dostepna.</returns>
+    public static bool IsUpdateAvailable()
+    {
+        try
+        {
+            AppSettings settings = AppSettings.Load(); // Wczytanie ustawień aplikacji
+
+            string networkPath = settings.UpdateNetworkPath; // Ścieżka sieciowa do sprawdzenia aktualizacji
+
+            string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
+
+            foreach (var netFile in Directory.GetFiles(networkPath))
+            {
+                string fileName = Path.GetFileName(netFile);
+
+                string localFile = Path.Combine(localPath, fileName);
+
+                if (!File.Exists(localFile) || File.GetLastWriteTimeUtc(netFile) > File.GetLastWriteTimeUtc(localFile))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Błąd sprawdzania aktualizacji: " + ex.Message);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Funkcja uruchamiająca zewnętrzny program aktualizujący i zamykająca bieżącą aplikację.
+    /// </summary>
+    public static void RunUpdaterAndExit()
+    {
+        AppSettings settings = AppSettings.Load();
+
+        string networkPath = settings.UpdateNetworkPath; // Ścieżka sieciowa do sprawdzenia aktualizacji
+
+        string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
+
+        string updaterExePath = Path.Combine(localPath, "PDF_Inspektor_Updater.exe"); // Ścieżka do programu aktualizującego
+
+        if (!File.Exists(updaterExePath))
+        {
+            MessageBox.Show("Brak pliku PDF_Inspektor_Updater.exe w katalogu aplikacji!\nProgram nie zostanie zaktualizowany do nowszej wersji.", "Błąd aktualizacji", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            return;
+        }
+
+        ProcessModule? processModule = Process.GetCurrentProcess().MainModule; // Pobranie modułu głównego bieżącego procesu
+
+        if (processModule != null)
+        {
+            string exePath = processModule.FileName;
+
+            ProcessStartInfo startInfo = new(updaterExePath) { ArgumentList = { networkPath, localPath, exePath } };
+
+            Process.Start(startInfo);
+        }
+
+        Application.Current.Shutdown(); // Zamknięcie bieżącej aplikacji
     }
 }

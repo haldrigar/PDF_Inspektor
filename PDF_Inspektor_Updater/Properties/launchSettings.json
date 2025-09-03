@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PDF_Inspektor_Updater": {
+      "commandName": "Project",
+      "commandLineArgs": "\"\\\\192.168.0.40\\Aplikacje\\PDF_Inspektor\\\" \"C:\\Users\\grzeg\\source\\repos\\PDF_Inspektor\\PDF Inspektor WPF\\bin\\Debug\\net8.0-windows\\\" \"C:\\Users\\grzeg\\source\\repos\\PDF_Inspektor\\PDF Inspektor WPF\\bin\\Debug\\net8.0-windows\\PDF_Inspektor.exe\""
+    }
+  }
+}

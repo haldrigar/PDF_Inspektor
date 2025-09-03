@@ -6,9 +6,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		..\.editorconfig = ..\.editorconfig
+		publish.bat = publish.bat
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF_Inspektor", "PDF Inspektor WPF\PDF_Inspektor.csproj", "{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PDF_Inspektor_Updater", "PDF_Inspektor_Updater\PDF_Inspektor_Updater.csproj", "{0FC760A5-74E6-4E92-9C09-1928B86EB22B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,6 +23,10 @@ Global
 		{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BBACB48F-569A-4AD1-A191-30EA46B1FD7E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FC760A5-74E6-4E92-9C09-1928B86EB22B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FC760A5-74E6-4E92-9C09-1928B86EB22B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FC760A5-74E6-4E92-9C09-1928B86EB22B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FC760A5-74E6-4E92-9C09-1928B86EB22B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

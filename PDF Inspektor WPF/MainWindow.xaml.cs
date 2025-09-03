@@ -51,6 +51,12 @@ public partial class MainWindow
 
         // Załaduj ustawienia aplikacji
         this._appSettings = AppSettings.Load();
+
+        // Sprawdź, czy ostatnio używany katalog istnieje, jeśli nie to go wyczyść, aby za każdym razem nie sprawdzać
+        if (!Directory.Exists(this._appSettings.LastUsedDirectory))
+        {
+            this._appSettings.LastUsedDirectory = string.Empty;
+        }
     }
 
     /// <summary>
@@ -76,6 +82,12 @@ public partial class MainWindow
         // Upewnij się, że okno jest widoczne na ekranie
         Tools.EnsureWindowIsOnScreen(this);
 
+        // Sprawdź, czy dostępna jest aktualizacja
+        if (Tools.IsUpdateAvailable())
+        {
+            Tools.RunUpdaterAndExit();
+        }
+
         // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
         foreach (ExternalTool tool in this._appSettings.Tools)
         {
@@ -99,6 +111,8 @@ public partial class MainWindow
                 this.FocusAndScrollToListBoxItem(fileToSelect ?? this.PdfFiles.First());
             }
         }
+
+        Mouse.OverrideCursor = null;
     }
 
     // Funkcja obsługująca zamknięcie okna
