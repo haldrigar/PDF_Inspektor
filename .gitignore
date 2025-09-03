@@ -361,11 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/PDF Inspektor WPF/GIMP
-/PDF Inspektor WPF/IrfanView
-/PDF Inspektor WPF/Tools/GIMP.zip
-/PDF Inspektor WPF/Tools/IrfanView.zip
-/PDF Inspektor WPF/Install/windowsdesktop-runtime-8.0.19-win-x64.exe
-/PDF Inspektor/Tools/gimp.zip
-/PDF Inspektor/Tools/irfanview.zip
-/PDF Inspektor/Install/windowsdesktop-runtime-8.0.19-win-x64.exe
+
+# Moje
+gimp.zip
+irfanview.zip
+windowsdesktop-runtime-8.0.19-win-x64.exe

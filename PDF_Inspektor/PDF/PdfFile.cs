@@ -5,7 +5,7 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
+namespace PDF_Inspektor.PDF;
 
 using System.ComponentModel;
 using System.IO;

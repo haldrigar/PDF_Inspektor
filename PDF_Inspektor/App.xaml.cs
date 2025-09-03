@@ -9,6 +9,8 @@ namespace PDF_Inspektor;
 
 using System.Windows;
 
+using Tool;
+
 using MessageBox = System.Windows.MessageBox;
 
 /// <summary>

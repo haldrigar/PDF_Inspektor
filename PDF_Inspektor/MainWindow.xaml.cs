@@ -5,8 +5,6 @@
 // </copyright>
 // ====================================================================================================
 
-using System.Windows.Threading;
-
 namespace PDF_Inspektor;
 
 using System.Collections.ObjectModel;
@@ -17,9 +15,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
+
+using PDF;
 
 using Syncfusion.Pdf;
 using Syncfusion.Windows.PdfViewer;
+
+using Tool;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml.
@@ -362,7 +365,7 @@ public partial class MainWindow
 
             /* --------------------------------------- */
 
-            List<string> pdfFiles = Directory.GetFiles(singleDirectory, "*.pdf", SearchOption.TopDirectoryOnly).ToList();
+            List<string> pdfFiles = [.. Directory.GetFiles(singleDirectory, "*.pdf", SearchOption.TopDirectoryOnly)];
 
             if (pdfFiles.Count > 0)
             {
@@ -737,7 +740,7 @@ public partial class MainWindow
     private void RenameSelectedFile()
     {
         // Sprawdź, czy zaznaczony jest dokładnie jeden element
-        if (this.ListBoxFiles.SelectedItems.Count != 1) 
+        if (this.ListBoxFiles.SelectedItems.Count != 1)
         {
             this.StatusBarItemInfo.Content = "Zmiana nazwy wymaga zaznaczenia jednego pliku.";
             this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
@@ -746,7 +749,7 @@ public partial class MainWindow
         }
 
         // Sprawdź, czy zaznaczony element jest typu PdfFile
-        if (this.ListBoxFiles.SelectedItem is not PdfFile pdfToRename) 
+        if (this.ListBoxFiles.SelectedItem is not PdfFile pdfToRename)
         {
             return;
         }

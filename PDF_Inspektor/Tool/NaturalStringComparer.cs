@@ -5,7 +5,7 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
+namespace PDF_Inspektor.Tool;
 
 using System.Runtime.InteropServices;
 

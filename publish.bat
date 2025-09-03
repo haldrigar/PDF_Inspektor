@@ -1,6 +1,8 @@
-cd "PDF Inspektor WPF"
+@echo off
+cd PDF_Inspektor
 dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=false
 
-PDF_Inspektor_Updater
+cd PDF_Inspektor_Updater
 dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
-@pause
+
+pause

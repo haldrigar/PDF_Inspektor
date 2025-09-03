@@ -5,7 +5,7 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
+namespace PDF_Inspektor.Tool;
 
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -50,7 +50,7 @@ public static class ScreenInterop
     /// <returns>Obszar roboczy (bez paska zadań) jako obiekt Rect.</returns>
     public static System.Windows.Rect GetPrimaryScreenWorkArea()
     {
-        var monitorHandle = MonitorFromWindow(IntPtr.Zero, MonitorDefaultToPrimary);
+        var monitorHandle = MonitorFromWindow(nint.Zero, MonitorDefaultToPrimary);
         var monitorInfo = default(Monitorinfo);
 
         monitorInfo.CbSize = Marshal.SizeOf(monitorInfo);
@@ -66,10 +66,10 @@ public static class ScreenInterop
     }
 
     [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+    private static extern nint MonitorFromWindow(nint hwnd, uint dwFlags);
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref Monitorinfo lpmi);
+    private static extern bool GetMonitorInfo(nint hMonitor, ref Monitorinfo lpmi);
 
     /// <summary>
     /// Struktura reprezentująca prostokąt (używana w Win32 API).

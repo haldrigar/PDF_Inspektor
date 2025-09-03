@@ -5,7 +5,7 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
+namespace PDF_Inspektor.PDF;
 
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Exporting;

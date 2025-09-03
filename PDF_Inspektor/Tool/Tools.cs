@@ -5,7 +5,7 @@
 // </copyright>
 // ====================================================================================================
 
-namespace PDF_Inspektor;
+namespace PDF_Inspektor.Tool;
 
 using System.Diagnostics;
 using System.IO;
@@ -39,8 +39,8 @@ internal static class Tools
         {
             Rect primaryScreenArea = ScreenInterop.GetPrimaryScreenWorkArea();
 
-            window.Left = primaryScreenArea.Left + ((primaryScreenArea.Width - window.Width) / 2);
-            window.Top = primaryScreenArea.Top + ((primaryScreenArea.Height - window.Height) / 2);
+            window.Left = primaryScreenArea.Left + (primaryScreenArea.Width - window.Width) / 2;
+            window.Top = primaryScreenArea.Top + (primaryScreenArea.Height - window.Height) / 2;
         }
     }
 
