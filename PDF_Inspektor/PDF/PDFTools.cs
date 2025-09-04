@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 09:58:05
 // ====================================================================================================
 
 namespace PDF_Inspektor.PDF;

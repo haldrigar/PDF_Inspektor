@@ -14,7 +14,7 @@
         Loaded="Window_Loaded"
         Closed="Window_Closed" 
         SizeChanged="Window_SizeChanged" 
-        Activated="Window_Activated">
+        Activated="Window_Activated" x:ClassModifier="internal">
     <Grid>
 
         <Grid.RowDefinitions>

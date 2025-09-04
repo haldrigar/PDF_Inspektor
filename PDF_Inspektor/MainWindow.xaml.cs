@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 12:54:07
 // ====================================================================================================
 
 namespace PDF_Inspektor;
@@ -27,16 +29,27 @@ using Tool;
 /// <summary>
 /// Interaction logic for MainWindow.xaml.
 /// </summary>
-public partial class MainWindow
+internal partial class MainWindow
 {
-    // Przechowuje ustawienia aplikacji
+    /// <summary>
+    /// Przechowuje ustawienia aplikacji.
+    /// </summary>
     private readonly AppSettings _appSettings;
 
-    // Dodaj pole do porównywania nazw plików, aby nie tworzyć go za każdym razem
+    /// <summary>
+    /// Porządny komparator do sortowania nazw plików w sposób naturalny (np. "file2.pdf" przed "file10.pdf").
+    /// </summary>
     private readonly NaturalStringComparer _naturalComparer = new();
 
-    // Przechowuje strumień aktualnie załadowanego pliku PDF
+    /// <summary>
+    /// Strumień w pamięci dla aktualnie zaznaczonego pliku PDF.
+    /// </summary>
     private MemoryStream? _selectedPdfStream;
+
+    /// <summary>
+    /// Aktywny katalog, z którego są ładowane pliki PDF.
+    /// </summary>
+    private string _activeDirectory = string.Empty;
 
     /// <summary>
     /// Inicjalizuje nową instancję klasy <see cref="MainWindow"/>.
@@ -56,25 +69,25 @@ public partial class MainWindow
 
         // Załaduj ustawienia aplikacji
         this._appSettings = AppSettings.Load();
-
-        // Sprawdź, czy ostatnio używany katalog istnieje, jeśli nie to go wyczyść, aby za każdym razem nie sprawdzać
-        if (!Directory.Exists(this._appSettings.LastUsedDirectory))
-        {
-            this._appSettings.LastUsedDirectory = string.Empty;
-        }
     }
 
     /// <summary>
     /// Pobiera lista plików PDF do wyświetlenia w interfejsie użytkownika.
     /// </summary>
+    // ReSharper disable once MemberCanBePrivate.Global
     public ObservableCollection<PdfFile> PdfFiles { get; } = [];
 
     /// <summary>
     /// Pobiera lub ustawia aktualnie zaznaczony plik PDF w interfejsie użytkownika.
     /// </summary>
+    // ReSharper disable once MemberCanBePrivate.Global
     public PdfFile? SelectedPdfFile { get; set; }
 
-    // Funkcje obsługująca uruchomienie okna
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie załadowania okna.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         Mouse.OverrideCursor = Cursors.Wait;
@@ -97,44 +110,23 @@ public partial class MainWindow
                 MessageBoxImage.Information);
 
             Tools.RunUpdaterAndExit();
-
-            return; // Zakończ działanie, ponieważ aplikacja zostanie zamknięta
         }
 
-        // Asynchroniczne wywołanie na wątku UI, ale z niskim priorytetem, aby nie blokować ładowania okna
-        this.Dispatcher.InvokeAsync(
-            () =>
-            {
-                // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
-                foreach (ExternalTool tool in this._appSettings.Tools)
-                {
-                    // Rozpakuj narzędzie, jeśli to konieczne
-                    Tools.EnsureAndUnpackTool(tool);
-                }
+        // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
+        foreach (ExternalTool tool in this._appSettings.Tools)
+        {
+            // Rozpakuj narzędzie, jeśli to konieczne
+            Tools.EnsureAndUnpackTool(tool);
+        }
 
-                // Załadowanie plików z ostatnio używanego katalogu, jeśli istnieje.
-                if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
-                {
-                    // Załaduj pliki z ostatnio używanego katalogu
-                    this.LoadFiles([this._appSettings.LastUsedDirectory]);
-
-                    // jeśli udało się załadować pliki
-                    if (this.PdfFiles.Count > 0)
-                    {
-                        // Spróbuj przywrócić zaznaczenie
-                        PdfFile? fileToSelect = this.PdfFiles.FirstOrDefault(f => f.FilePath == this._appSettings.LastUsedFilePath);
-
-                        // Ustawienie zaznaczenia na znaleziony plik lub na pierwszy plik na liście
-                        this.FocusAndScrollToListBoxItem(fileToSelect ?? this.PdfFiles.First());
-                    }
-                }
-
-                Mouse.OverrideCursor = null;
-            },
-            DispatcherPriority.ContextIdle);
+        Mouse.OverrideCursor = null;
     }
 
-    // Funkcja obsługująca zamknięcie okna
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie zamknięcia okna.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void Window_Closed(object sender, EventArgs e)
     {
         this._appSettings.WindowTop = this.Top;
@@ -148,7 +140,11 @@ public partial class MainWindow
         this._selectedPdfStream?.Dispose();
     }
 
-    // Obsługa zmiany rozmiaru okna
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie zmiany rozmiaru okna.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Po zmianie rozmiaru okna, ustaw ponownie tryb powiększenia na "Dopasuj stronę"
@@ -165,59 +161,69 @@ public partial class MainWindow
     /// </summary>
     private void Window_Activated(object sender, EventArgs e)
     {
-        // ============================================== USUNIĘCIE Z LISTY SKASOWANYCH PLIKÓW ==================================
-        int removedCount = 0;
+        // ============================================== SYNCHRONIZACJA LISTY PLIKÓW Z DYSKIEM ==================================
 
-        // Używamy pętli 'for' od końca, aby bezpiecznie usuwać elementy z kolekcji.
-        for (int i = this.PdfFiles.Count - 1; i >= 0; i--)
+        // Sprawdź, czy aktywny katalog jest ustawiony i istnieje
+        if (!string.IsNullOrEmpty(this._activeDirectory) && Directory.Exists(this._activeDirectory))
         {
-            PdfFile fileToCheck = this.PdfFiles[i];
+            // Pobierz aktualną listę plików PDF z dysku
+            HashSet<string> pdfOnDiskFilePaths = new(Directory.GetFiles(this._activeDirectory,
+                    "*.pdf",
+                    SearchOption.TopDirectoryOnly),
+                StringComparer.OrdinalIgnoreCase);
 
-            if (!File.Exists(fileToCheck.FilePath))
+            // Pobierz listę plików aktualnie załadowanych w aplikacji
+            List<PdfFile> pdfFiles = [.. this.PdfFiles];
+
+            // --- Krok 1: Usuń pliki, które nie istnieją już na dysku ---
+
+            Debug.WriteLine("Usuwanie z listy plików, których nie ma już na dysku...");
+
+            int removedCount = 0;
+
+            foreach (PdfFile pdfFile in pdfFiles)
             {
-                // Plik nie istnieje na dysku, więc usuwamy go z listy.
-                this.PdfFiles.RemoveAt(i);
+                if (!pdfOnDiskFilePaths.Contains(pdfFile.FilePath))
+                {
+                    this.PdfFiles.Remove(pdfFile);
 
-                Debug.WriteLine($"Plik '{fileToCheck.FileName}' nie istnieje. Usunięto z listy.");
+                    Debug.WriteLine($"Plik '{pdfFile.FileName}' usunięto z listy.");
 
-                removedCount++;
+                    removedCount++;
+                }
             }
-        }
 
-        if (removedCount > 0)
-        {
-            this.StatusBarItemInfo.Content = $"Usunięto {removedCount} plików PDF z listy.";
-            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
-
-            // Jeśli po usunięciu nie ma już żadnych plików, zakończ.
-            if (this.PdfFiles.Count == 0)
+            if (removedCount > 0)
             {
-                this.PdfViewer.Unload(true);
-                this._selectedPdfStream?.Dispose();
+                this.StatusBarItemInfo.Content = $"Usunięto {removedCount} plików PDF z listy.";
+                this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
+                if (this.PdfFiles.Count == 0)
+                {
+                    this.PdfViewer.Unload(true);
+                    this._selectedPdfStream?.Dispose();
+                }
             }
-        }
 
-        // =============================== DODANIE NOWYCH PLIKÓW Z DYSKU =====================================================
-        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
-        {
-            // Pobierz wszystkie PDF-y z katalogu
-            string[] pdfPathsDirectory = Directory.GetFiles(this._appSettings.LastUsedDirectory, "*.pdf", SearchOption.TopDirectoryOnly);
+            Debug.WriteLine("Zakończono usuwanie z listy plików, których nie ma już na dysku.");
 
-            // Utwórz zbiór ścieżek już załadowanych plików (dla szybkiego sprawdzania)
-            HashSet<string> pdfPathsListBox = new(this.PdfFiles.Select(f => f.FilePath), StringComparer.OrdinalIgnoreCase);
+            // --- Krok 2: Dodaj nowe pliki, które pojawiły się na dysku ---
 
-            // Dodaj każdy nowy plik, który nie istnieje na liście
+            Debug.WriteLine("Dodawanie nowych plików z dysku na listę...");
+
             int addedCount = 0;
 
-            foreach (string path in pdfPathsDirectory)
+            HashSet<string> pdfFilesListbox = new(this.PdfFiles.Select(f => f.FilePath), StringComparer.OrdinalIgnoreCase);
+
+            foreach (string pdfOnDisk in pdfOnDiskFilePaths)
             {
-                if (!pdfPathsListBox.Contains(path))
+                if (!pdfFilesListbox.Contains(pdfOnDisk))
                 {
                     try
                     {
-                        PdfFile pdfToAdd = new(path); // Utwórz nowy obiekt PdfFile
+                        PdfFile pdfToAdd = new(pdfOnDisk);
 
-                        this.AddAndSortFile(pdfToAdd); // Dodaj i posortuj
+                        this.AddAndSortFile(pdfToAdd);
 
                         Debug.WriteLine($"Plik '{pdfToAdd.FileName}' dodano do listy.");
 
@@ -225,7 +231,7 @@ public partial class MainWindow
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Błąd podczas dodawania nowego pliku PDF: {path} - {ex.Message}");
+                        Debug.WriteLine($"Błąd podczas dodawania nowego pliku PDF: {pdfOnDisk} - {ex.Message}");
                     }
                 }
             }
@@ -235,6 +241,8 @@ public partial class MainWindow
                 this.StatusBarItemInfo.Content = $"Dodano {addedCount} nowych plików PDF do listy.";
                 this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
             }
+
+            Debug.WriteLine("Zakończono dodawanie nowych plików z dysku na listę.");
         }
 
         // =============================== SPRAWDZENIE CZY ZAZNACZONY PLIK BYŁ MODYFIKOWANY POZA PROGRAMEM ====================
@@ -269,7 +277,11 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa przeciągania i upuszczania plików
+    /// <summary>
+    /// Funkcja dodająca plik do kolekcji i utrzymująca sortowanie.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ListBoxFiles_DragOver(object sender, DragEventArgs e)
     {
         // Sprawdzamy czy przeciągane są pliki/foldery.
@@ -278,7 +290,11 @@ public partial class MainWindow
         e.Handled = true;
     }
 
-    // Obsługa upuszczania plików
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie upuszczenia plików na ListBox.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ListBoxFiles_Drop(object sender, DragEventArgs e)
     {
         // Sprawdź, czy są upuszczone pliki
@@ -289,7 +305,11 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa przycisku "Otwórz katalog"
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku otwierania katalogu.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ButtonOpenDirectory_Click(object sender, RoutedEventArgs e)
     {
         // Otwórz okno dialogowe wyboru folderu
@@ -305,12 +325,18 @@ public partial class MainWindow
             // Załaduj istniejące pliki z wybranego folderu
             this.LoadFiles([dialog.FolderName]);
 
+            // Ustaw aktywny katalog
+            this._activeDirectory = dialog.FolderName;
+
             // Zapisz wybrany katalog jako ostatnio używany
             this._appSettings.LastUsedDirectory = dialog.FolderName;
         }
     }
 
-    // Funkcja ładująca pliki PDF z podanych ścieżek
+    /// <summary>
+    /// Funkcja ładująca pliki PDF z podanych ścieżek (plików lub katalogów).
+    /// </summary>
+    /// <param name="paths"></param>
     private void LoadFiles(IEnumerable<string> paths)
     {
         Mouse.OverrideCursor = Cursors.Wait;
@@ -350,7 +376,9 @@ public partial class MainWindow
                 return; // Brak prawidłowych plików lub folderów
             }
 
-            this._appSettings.LastUsedDirectory = singleDirectory;
+            this._activeDirectory = singleDirectory; // Ustaw aktywny katalog
+
+            this._appSettings.LastUsedDirectory = singleDirectory; // Zapisz wybrany katalog jako ostatnio używany
 
             this.TextBoxDirectory.Text = Path.GetFileName(singleDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
@@ -383,7 +411,11 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa zmiany zaznaczenia w ListBox
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie zmiany zaznaczenia w ListBox.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ListBoxFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // Sprawdzamy, czy zaznaczony element jest typu PdfFile
@@ -455,8 +487,11 @@ public partial class MainWindow
         }
     }
 
-    // Obsługa zdarzenia DocumentLoaded kontrolki PdfViewer
-    // Jest wywoływane po zakończeniu ładowania dokumentu PDF.
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie załadowania dokumentu w kontrolce PdfViewer.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="args"></param>
     private void PdfViewer_DocumentLoaded(object sender, EventArgs args)
     {
         this.PdfViewer.ZoomMode = ZoomMode.FitPage; // Dopasuj stronę
@@ -471,9 +506,6 @@ public partial class MainWindow
         // Najpierw sprawdź, czy w ogóle mamy załadowany i zaznaczony plik
         if (this.ListBoxFiles.SelectedItem is PdfFile selectedPdfFile)
         {
-            // Zapisz ścieżkę ostatnio używanego pliku
-            this._appSettings.LastUsedFilePath = selectedPdfFile.FilePath;
-
             // Pobierz aktualne informacje o pliku, ponieważ mamy pewność, że istnieje i jest dostępny.
             FileInfo fileInfo = new(selectedPdfFile.FilePath);
 
@@ -533,7 +565,11 @@ public partial class MainWindow
         Mouse.OverrideCursor = null; // Przywróć kursor
     }
 
-    // Obsługa przycisków obrotu
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku obracania pliku PDF.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ButtonRotate_OnClick(object sender, RoutedEventArgs e)
     {
         // Sprawdź, czy zaznaczony jest dokładnie jeden element
@@ -552,13 +588,21 @@ public partial class MainWindow
         e.Handled = true; // Zaznacz zdarzenie jako obsłużone
     }
 
-    // Obsługa przycisku "Usuń"
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku usuwania pliku PDF.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ButtonDelete_Click(object sender, RoutedEventArgs e)
     {
         this.DeleteSelectedFiles(); // Funkcja usuwająca zaznaczone pliki
     }
 
-    // Obsługa klawiszy na liście plików
+    /// <summary>
+    /// Funkcja obsługująca zdarzenie naciśnięcia klawisza w ListBox.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ListBoxFiles_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Right || e.Key == Key.Left) // Obsługa klawiszy strzałek do obrotu
@@ -603,7 +647,10 @@ public partial class MainWindow
         }
     }
 
-    // Funkcja obracająca stronę i zapisująca zmiany
+    /// <summary>
+    /// Funkcja obracająca i zapisująca zmiany w zaznaczonym pliku PDF.
+    /// </summary>
+    /// <param name="rotateRight"></param>
     private void RotateAndSave(bool rotateRight)
     {
         // Sprawdź, czy zaznaczony element jest typu PdfFile
@@ -635,11 +682,21 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku edycji w zewnętrznym narzędziu IrfanView.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ButtonEditIrfanView_Click(object sender, RoutedEventArgs e)
     {
         this.LaunchConfiguredTool("IrfanView");
     }
 
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku edycji w zewnętrznym narzędziu GIMP.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void ButtonEditGimp_Click(object sender, RoutedEventArgs e)
     {
         this.LaunchConfiguredTool("GIMP");
@@ -736,7 +793,9 @@ public partial class MainWindow
             DispatcherPriority.ContextIdle);
     }
 
-    // Obsługa zmiany nazwy pliku
+    /// <summary>
+    /// Funkcja obsługująca zmianę nazwy zaznaczonego pliku PDF.
+    /// </summary>
     private void RenameSelectedFile()
     {
         // Sprawdź, czy zaznaczony jest dokładnie jeden element
@@ -862,6 +921,11 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Funkcja obsługująca przewijanie kółkiem myszy nad kontrolką PdfViewer.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void PdfViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         // Jeśli klawisz Ctrl jest wciśnięty, nie rób nic.
@@ -903,21 +967,33 @@ public partial class MainWindow
         e.Handled = true;
     }
 
-    // Obsługa kliknięcia "Zmień nazwę..." w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Zmień nazwę" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void RenameMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // zmiana nazwy zaznaczonego pliku
         this.RenameSelectedFile();
     }
 
-    // Obsługa kliknięcia "Usuń" w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Usuń" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void DeleteMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // usunięcie zaznaczonych plików
         this.ButtonDelete_Click(sender, e);
     }
 
-    // Obsługa kliknięcia "Obróć w prawo" w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Obróć w prawo" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void RotateRightMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // Sprawdź, czy zaznaczony jest dokładnie jeden element
@@ -933,7 +1009,11 @@ public partial class MainWindow
         this.RotateAndSave(true); // true = obrót w prawo
     }
 
-    // Obsługa kliknięcia "Obróć w lewo" w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Obróć w lewo" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void RotateLeftMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // Sprawdź, czy zaznaczony jest dokładnie jeden element
@@ -949,21 +1029,31 @@ public partial class MainWindow
         this.RotateAndSave(false); // false = obrót w lewo
     }
 
-    // Obsługa kliknięcia "Wytnij" w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Wytnij" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void CutMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // Wywołaj istniejącą, centralną metodę do wycinania plików.
         this.CutSelectedFiles();
     }
 
-    // Obsługa kliknięcia "Kopiuj" w menu kontekstowym
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie "Kopiuj" w menu kontekstowym.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void CopyMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // Wywołaj istniejącą, centralną metodę do kopiowania plików.
         this.CopySelectedFiles();
     }
 
-    // Centralna metoda do kopiowania zaznaczonych plików do schowka
+    /// <summary>
+    /// Funkcja kopiująca zaznaczone pliki do schowka.
+    /// </summary>
     private void CopySelectedFiles()
     {
         if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
@@ -986,7 +1076,9 @@ public partial class MainWindow
         this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
     }
 
-    // Centralna metoda do wycinania zaznaczonych plików do schowka
+    /// <summary>
+    /// Funkcja wycinająca zaznaczone pliki do schowka.
+    /// </summary>
     private void CutSelectedFiles()
     {
         if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
@@ -1023,11 +1115,11 @@ public partial class MainWindow
     /// </summary>
     private void ButtonRefreshDirectory_Click(object sender, RoutedEventArgs e)
     {
-        if (!string.IsNullOrEmpty(this._appSettings.LastUsedDirectory) && Directory.Exists(this._appSettings.LastUsedDirectory))
+        if (!string.IsNullOrEmpty(this._activeDirectory) && Directory.Exists(this._activeDirectory))
         {
             string? selectedFilePath = this.SelectedPdfFile?.FilePath; // Zapamiętaj ścieżkę zaznaczonego pliku, jeśli istnieje
 
-            this.LoadFiles([this._appSettings.LastUsedDirectory]); // Przeładuj pliki z ostatnio używanego katalogu
+            this.LoadFiles([this._activeDirectory]); // Przeładuj pliki z ostatnio używanego katalogu
 
             if (selectedFilePath != null)
             {
@@ -1095,9 +1187,14 @@ public partial class MainWindow
         this.PdfFiles.Insert(insertIndex, fileToAdd);
     }
 
+    /// <summary>
+    /// Funkcja obsługująca podwójne kliknięcie w TextBoxDirectory, otwierająca Eksplorator Windows w aktywnym katalogu.
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void TextBoxDirectory_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        string dir = this._appSettings.LastUsedDirectory;
+        string dir = this._activeDirectory;
 
         // Brak katalogu do otwarcia
         if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))

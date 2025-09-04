@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 12:58:34
 // ====================================================================================================
 
 namespace PDF_Inspektor.Tool;
@@ -10,6 +12,8 @@ namespace PDF_Inspektor.Tool;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 using MessageBox = System.Windows.MessageBox;
@@ -20,6 +24,11 @@ using Window = System.Windows.Window;
 /// </summary>
 internal static class Tools
 {
+    /// <summary>
+    /// Wyrażenie regularne do wyodrębniania nazwy hosta ze ścieżki UNC.
+    /// </summary>
+    private static readonly Regex UncPathRegex = new(@"^\\\\([^\\]+)");
+
     /// <summary>
     /// Sprawdza, czy okno jest widoczne na którymkolwiek z ekranów i w razie potrzeby przesuwa je na środek ekranu głównego.
     /// Używa natywnego Win32 API zamiast Windows Forms.
@@ -39,8 +48,8 @@ internal static class Tools
         {
             Rect primaryScreenArea = ScreenInterop.GetPrimaryScreenWorkArea();
 
-            window.Left = primaryScreenArea.Left + (primaryScreenArea.Width - window.Width) / 2;
-            window.Top = primaryScreenArea.Top + (primaryScreenArea.Height - window.Height) / 2;
+            window.Left = primaryScreenArea.Left + ((primaryScreenArea.Width - window.Width) / 2);
+            window.Top = primaryScreenArea.Top + ((primaryScreenArea.Height - window.Height) / 2);
         }
     }
 
@@ -108,37 +117,81 @@ internal static class Tools
 
     /// <summary>
     /// Funkcja sprawdzająca, czy dostępna jest nowsza wersja aplikacji w określonej lokalizacji sieciowej.
+    /// Używa Ping do szybkiego sprawdzenia dostępności serwera przed próbą dostępu do ścieżki sieciowej.
     /// </summary>
     /// <returns>Zwraca true jeśli aktualizacja jest dostepna.</returns>
     public static bool IsUpdateAvailable()
     {
-        string localPath = AppDomain.CurrentDomain.BaseDirectory; // Lokalny katalog aplikacji
+        AppSettings settings = AppSettings.Load();
 
-        AppSettings settings = AppSettings.Load(); // Wczytanie ustawień aplikacji
+        string updatePath = settings.UpdatePath;
 
-        string updatePath = settings.UpdatePath; // Ścieżka sieciowa do sprawdzenia aktualizacji
+        string localPath = AppDomain.CurrentDomain.BaseDirectory;
 
-        if (Directory.Exists(updatePath))
+        // Wyodrębnij nazwę hosta lub adres IP ze ścieżki UNC
+        Match match = UncPathRegex.Match(updatePath);
+
+        if (!match.Success)
         {
-            try
+            // Jeśli to nie jest ścieżka UNC (np. ścieżka lokalna), użyj standardowego sprawdzania
+            return CheckFilesForUpdate(updatePath, localPath);
+        }
+
+        string host = match.Groups[1].Value;
+
+        const int timeout = 1000; // Czas oczekiwania na odpowiedź Ping w milisekundach
+
+        try
+        {
+            using Ping ping = new();
+            PingReply reply = ping.Send(host, timeout); // Synchroniczny Ping z timeoutem
+
+            if (reply.Status != IPStatus.Success)
             {
-                foreach (string updateFilePath in Directory.GetFiles(updatePath))
+                Debug.WriteLine($"Serwer aktualizacji '{host}' jest niedostępny. Status: {reply.Status}");
+
+                return false; // Serwer nie odpowiada, więc aktualizacja jest niedostępna
+            }
+        }
+        catch (PingException ex)
+        {
+            Debug.WriteLine($"Błąd Ping podczas sprawdzania serwera '{host}': {ex.Message}");
+            return false; // Błąd podczas pingowania (np. nie można rozpoznać nazwy hosta)
+        }
+
+        // Jeśli serwer odpowiada, wykonaj sprawdzenie plików
+        return CheckFilesForUpdate(updatePath, localPath);
+    }
+
+    /// <summary>
+    /// Synchronicznie sprawdza pliki aktualizacji.
+    /// </summary>
+    private static bool CheckFilesForUpdate(string updatePath, string localPath)
+    {
+        try
+        {
+            // Pobierz wszystkie pliki ze źródła aktualizacji, włączając podkatalogi
+            foreach (string sourceFilePath in Directory.GetFiles(updatePath, "*.*", SearchOption.AllDirectories))
+            {
+                // Utwórz ścieżkę względną, aby zachować strukturę folderów
+                string relativePath = Path.GetRelativePath(updatePath, sourceFilePath);
+
+                string localFile = Path.Combine(localPath, relativePath);
+
+                // Sprawdź, czy plik lokalny nie istnieje lub plik w źródle jest nowszy
+                if (!File.Exists(localFile) || File.GetLastWriteTimeUtc(sourceFilePath) > File.GetLastWriteTimeUtc(localFile))
                 {
-                    string fileName = Path.GetFileName(updateFilePath);
-
-                    string localFile = Path.Combine(localPath, fileName);
-
-                    if (!File.Exists(localFile) || File.GetLastWriteTimeUtc(updateFilePath) > File.GetLastWriteTimeUtc(localFile))
-                    {
-                        return true;
-                    }
+                    // Znaleziono nowszy plik lub brak pliku lokalnego
+                    return true;
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd sprawdzania aktualizacji: " + ex.Message);
-            }
-            
+        }
+        catch (Exception ex)
+        {
+            // W przypadku błędu (np. brak dostępu do sieci) nie przeprowadzaj aktualizacji
+            Debug.WriteLine("Błąd podczas sprawdzania plików aktualizacji: " + ex.Message);
+
+            return false;
         }
 
         return false;

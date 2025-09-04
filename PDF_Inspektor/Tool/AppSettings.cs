@@ -48,17 +48,12 @@ internal class AppSettings
     /// <summary>
     /// Pobiera lub ustawia ścieżkę sieciową do aktualizacji aplikacji.
     /// </summary>
-    public string UpdatePath { get; set; } = @"\\192.168.0.40\Aplikacje\PDF_Inspektor\";
+    public string UpdatePath { get; init; } = @"\\192.168.0.40\Aplikacje\PDF_Inspektor\";
 
     /// <summary>
     /// Pobiera lub ustawia ostatnio używany katalog do otwierania plików PDF.
     /// </summary>
     public string LastUsedDirectory { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Pobiera lub ustawia ostatnio używany plik PDF.
-    /// </summary>
-    public string LastUsedFilePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Pobiera klucz licencyjny Syncfusion.

@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 12:40:15
 // ====================================================================================================
 
 namespace PDF_Inspektor.Tool;
@@ -15,7 +17,7 @@ using System.Windows.Interop;
 /// Klasa pomocnicza do uzyskiwania informacji o ekranie za pomocą Win32 API,
 /// bez potrzeby dołączania referencji do System.Windows.Forms.
 /// </summary>
-public static class ScreenInterop
+internal static class ScreenInterop
 {
     // --- Definicje struktur i stałych Win32 ---
     private const int MonitorDefaultToNearest = 0x00000002;
@@ -28,10 +30,10 @@ public static class ScreenInterop
     /// <returns>Obszar roboczy (bez paska zadań) jako obiekt Rect.</returns>
     public static System.Windows.Rect GetScreenWorkArea(Window window)
     {
-        var windowHandle = new WindowInteropHelper(window).Handle;
-        var monitorHandle = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        IntPtr windowHandle = new WindowInteropHelper(window).Handle;
+        IntPtr monitorHandle = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
 
-        var monitorInfo = default(Monitorinfo);
+        Monitorinfo monitorInfo = default;
 
         monitorInfo.CbSize = Marshal.SizeOf(monitorInfo);
         GetMonitorInfo(monitorHandle, ref monitorInfo);
@@ -50,8 +52,8 @@ public static class ScreenInterop
     /// <returns>Obszar roboczy (bez paska zadań) jako obiekt Rect.</returns>
     public static System.Windows.Rect GetPrimaryScreenWorkArea()
     {
-        var monitorHandle = MonitorFromWindow(nint.Zero, MonitorDefaultToPrimary);
-        var monitorInfo = default(Monitorinfo);
+        IntPtr monitorHandle = MonitorFromWindow(nint.Zero, MonitorDefaultToPrimary);
+        Monitorinfo monitorInfo = default;
 
         monitorInfo.CbSize = Marshal.SizeOf(monitorInfo);
 
