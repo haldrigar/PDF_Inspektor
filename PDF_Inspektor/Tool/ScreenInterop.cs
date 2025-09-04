@@ -4,7 +4,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
 // 
-// Ostatni zapis pliku: 2025-09-04 12:40:15
+// Ostatni zapis pliku: 2025-09-04 13:43:23
 // ====================================================================================================
 
 namespace PDF_Inspektor.Tool;
@@ -20,7 +20,14 @@ using System.Windows.Interop;
 internal static class ScreenInterop
 {
     // --- Definicje struktur i stałych Win32 ---
+    /// <summary>
+    /// Stała określająca, że monitor ma być wybrany na podstawie najbliższego do okna.
+    /// </summary>
     private const int MonitorDefaultToNearest = 0x00000002;
+
+    /// <summary>
+    /// Stała określająca, że monitor ma być domyślnym monitorem głównym.
+    /// </summary>
     private const int MonitorDefaultToPrimary = 0x00000001;
 
     /// <summary>
@@ -67,9 +74,21 @@ internal static class ScreenInterop
             monitorInfo.RcWork.Bottom - monitorInfo.RcWork.Top);
     }
 
+    /// <summary>
+    /// Funkcja Win32 zwracająca uchwyt do monitora, na którym znajduje się dane okno.
+    /// </summary>
+    /// <param name="hwnd"></param>
+    /// <param name="dwFlags"></param>
+    /// <returns></returns>
     [DllImport("user32.dll")]
     private static extern nint MonitorFromWindow(nint hwnd, uint dwFlags);
 
+    /// <summary>
+    /// Funkcja Win32 pobierająca informacje o monitorze.
+    /// </summary>
+    /// <param name="hMonitor"></param>
+    /// <param name="lpmi"></param>
+    /// <returns></returns>
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern bool GetMonitorInfo(nint hMonitor, ref Monitorinfo lpmi);
 
@@ -77,7 +96,7 @@ internal static class ScreenInterop
     /// Struktura reprezentująca prostokąt (używana w Win32 API).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct Rect
+    private struct Rect
     {
         /// <summary>
         /// współrzędna X lewego górnego rogu.
@@ -106,9 +125,24 @@ internal static class ScreenInterop
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct Monitorinfo
     {
+        /// <summary>
+        /// Wielkość struktury w bajtach.
+        /// </summary>
         public int CbSize;
+
+        /// <summary>
+        /// Czy monitor jest monitorem głównym.
+        /// </summary>
         public Rect RcMonitor;
+
+        /// <summary>
+        /// Współrzędne obszaru roboczego (bez paska zadań).
+        /// </summary>
         public Rect RcWork;
+
+        /// <summary>
+        /// Flagi monitora (np. czy jest główny).
+        /// </summary>
         public uint DwFlags;
     }
 }
