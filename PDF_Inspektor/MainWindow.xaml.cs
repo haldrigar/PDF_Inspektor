@@ -4,7 +4,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
 // 
-// Ostatni zapis pliku: 2025-09-04 12:54:07
+// Ostatni zapis pliku: 2025-09-04 16:53:36
 // ====================================================================================================
 
 namespace PDF_Inspektor;
@@ -110,6 +110,8 @@ internal partial class MainWindow
                 MessageBoxImage.Information);
 
             Tools.RunUpdaterAndExit();
+
+            return; // Zakończ działanie bieżącej instancji
         }
 
         // Sprawdź i rozpakuj narzędzia zdefiniowane w konfiguracji
@@ -403,6 +405,9 @@ internal partial class MainWindow
                 {
                     this.PdfFiles.Add(new PdfFile(file));
                 }
+
+                // Zaznacz pierwszy plik na liście
+                this.FocusAndScrollToListBoxItem(this.PdfFiles[0]);
             }
         }
         finally
@@ -1058,6 +1063,9 @@ internal partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
         {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia co najmniej jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
             return;
         }
 
@@ -1083,6 +1091,9 @@ internal partial class MainWindow
     {
         if (this.ListBoxFiles.SelectedItems.Count == 0) // Nic nie jest zaznaczone
         {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia co najmniej jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
             return;
         }
 
@@ -1142,12 +1153,18 @@ internal partial class MainWindow
     /// </summary>
     private void DeleteSelectedFiles()
     {
-        List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()];
+        List<PdfFile> itemsToDelete = [.. this.ListBoxFiles.SelectedItems.Cast<PdfFile>()]; // Skopiuj zaznaczone elementy do listy
 
         if (itemsToDelete.Count == 0)
         {
+            this.StatusBarItemInfo.Content = "Operacja wymaga zaznaczenia co najmniej jednego pliku.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
             return;
         }
+
+        // Zapamiętaj indeks pierwszego zaznaczonego pliku
+        int startIndex = this.ListBoxFiles.SelectedIndex;
 
         if (MessageBox.Show($"Czy na pewno chcesz usunąć {itemsToDelete.Count} {(itemsToDelete.Count == 1 ? "plik" : "plików")}?", "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
@@ -1158,15 +1175,27 @@ internal partial class MainWindow
         {
             try
             {
-                // Najpierw usuń plik z dysku.
                 File.Delete(item.FilePath);
 
-                // Jeśli powyższa operacja się udała, usuń plik z listy.
                 this.PdfFiles.Remove(item);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas usuwania pliku: {item.FileName}\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Wybierz następny plik lub ostatni na liście, jeśli to był ostatni plik
+        if (this.PdfFiles.Count > 0)
+        {
+            int nextIndex = Math.Min(startIndex, this.PdfFiles.Count - 1);
+
+            this.ListBoxFiles.SelectedIndex = nextIndex;
+
+            // Ustaw fokus i przewiń do nowego elementu
+            if (this.ListBoxFiles.SelectedItem is PdfFile selected)
+            {
+                this.FocusAndScrollToListBoxItem(selected);
             }
         }
     }
@@ -1213,5 +1242,113 @@ internal partial class MainWindow
         }
 
         e.Handled = true; // Zaznacz zdarzenie jako obsłużone
+    }
+
+    /// <summary>
+    /// Funkcja obsługująca kliknięcie przycisku "Przenumeruj pliki".
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    private void ButtonRenumberFiles_Click(object sender, RoutedEventArgs e)
+    {
+        // Nic nie jest na liście
+        if (this.PdfFiles.Count == 0)
+        {
+            this.StatusBarItemInfo.Content = "Brak plików do przenumerpowania.";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Orange);
+
+            return;
+        }
+
+        // Sprawdzenie, czy wszystkie pliki z listy fizycznie istnieją na dysku przed przenumerowaniem
+        if (this.PdfFiles.Any(f => !File.Exists(f.FilePath)))
+        {
+            MessageBox.Show("Lista plików na liście i dysku jest różna!\n\nOdśwież katalog przed przenumerowaniem.",
+                "Brakujące pliki",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        // Potwierdzenie od użytkownika
+        if (MessageBox.Show(
+                $"Czy na pewno przenumerować {this.PdfFiles.Count} plików od 1.pdf do {this.PdfFiles.Count}.pdf?\nOperacja jest nieodwracalna.",
+                "Potwierdzenie przenumerowania",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        List<PdfFile> filesToRenumber = [.. this.PdfFiles]; // Tworzymy kopię listy, aby operować na stabilnej kolekcji
+
+        try
+        {
+            // Etap 1: Zmień nazwy plików na tymczasowe, aby uniknąć kolizji nazw
+            Dictionary<string, string> tempMapping = new(StringComparer.OrdinalIgnoreCase); // Mapa: stara ścieżka -> tymczasowa ścieżka
+
+            HashSet<string> pdfFileNames = Directory.GetFiles(this._activeDirectory, "*.pdf")
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            int counter = 1;
+
+            // musimy sprawdziź czy pliku o tym numerze nie ma juz na dysku, należy mu nadać nazwę tymczasową, a później zmienić na kolejną
+            foreach (PdfFile pdfFile in filesToRenumber)
+            {
+                string newName = $"{counter}.pdf"; // Nowa nazwa pliku
+                string newPath = Path.Combine(this._activeDirectory, newName); // Nowa pełna ścieżka pliku
+
+                // jeśli plik o tej nazwie już istnieje na dysku, nadajemy nazwę tymczasową
+                if (pdfFileNames.Contains(newName))
+                {
+                    string tempName = $"__{counter}__{Guid.NewGuid()}.pdf";
+                    string tempPath = Path.Combine(this._activeDirectory, tempName);
+
+                    File.Move(pdfFile.FilePath, tempPath); // Zmień nazwę na tymczasową
+
+                    tempMapping[tempPath] = newPath; // Zmapuj tymczasową ścieżkę na docelową
+                }
+                else
+                {
+                    tempMapping[pdfFile.FilePath] = newPath; // Zmapuj starą ścieżkę na docelową
+                }
+
+                counter++;
+            }
+
+            // zmiana nazw plików
+            foreach (KeyValuePair<string, string> newMapping in tempMapping)
+            {
+                File.Move(newMapping.Key, newMapping.Value);
+            }
+
+            // Odśwież listę, aby pokazać nowe nazwy i kolejność
+            this.LoadFiles([this._activeDirectory]);
+
+            // ustaw fokus na pierwszy plik na liście
+            if (this.PdfFiles.Count > 0)
+            {
+                this.FocusAndScrollToListBoxItem(this.PdfFiles[0]);
+            }
+
+            this.StatusBarItemInfo.Content = $"Przenumerowano {counter - 1} plików!";
+            this.StatusBarItemInfo.Background = new SolidColorBrush(Colors.Green);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Wystąpił błąd podczas przenumerowania plików:\n" + ex.Message, "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            // W przypadku błędu warto odświeżyć listę, aby odzwierciedlić aktualny stan na dysku
+            this.LoadFiles([this._activeDirectory]);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
     }
 }

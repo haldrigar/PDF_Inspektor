@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 14:29:01
 // ====================================================================================================
 
 namespace PDF_Inspektor.Tool;
@@ -37,13 +39,15 @@ public class ExternalTool
 /// </summary>
 internal class AppSettings
 {
-    // Ścieżka do pliku konfiguracyjnego w katalogu bazowym aplikacji.
-    [JsonIgnore]
-    private static readonly string ConfigFilePath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
+    /// <summary>
+    /// Pobiera ścieżkę do pliku konfiguracyjnego w katalogu bazowym aplikacji.
+    /// </summary>
+    [JsonIgnore] private static readonly string ConfigFilePath = Path.Combine(AppContext.BaseDirectory, "PDF_Inspektor.appsettings.json");
 
-    // Opcje serializacji JSON ze wcięciami dla lepszej czytelności.
-    [JsonIgnore]
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    /// <summary>
+    /// Pobiera opcje serializacji JSON z wcięciami dla lepszej czytelności.
+    /// </summary>
+    [JsonIgnore] private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
     /// Pobiera lub ustawia ścieżkę sieciową do aktualizacji aplikacji.

@@ -12,11 +12,21 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseWindowsForms>False</UseWindowsForms>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <VersionPrefix>1.25.8.28</VersionPrefix>
+    <VersionPrefix>1.25.9.4</VersionPrefix>
+    <Platforms>AnyCPU;x64</Platforms>
+    <StartupObject>PDF_Inspektor.App</StartupObject>
+    <Copyright>GISNET</Copyright>
+    <NeutralLanguage>pl</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Resources\copy.png" />
+    <None Remove="Resources\cut.png" />
+    <None Remove="Resources\delete.png" />
     <None Remove="Resources\gisnet.ico" />
+    <None Remove="Resources\rename.png" />
+    <None Remove="Resources\rotate_left.png" />
+    <None Remove="Resources\rotate_right.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,7 +35,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Resources\copy.png" />
+    <Resource Include="Resources\cut.png" />
+    <Resource Include="Resources\delete.png" />
     <Resource Include="Resources\gisnet.ico" />
+    <Resource Include="Resources\rename.png" />
+    <Resource Include="Resources\rotate_left.png" />
+    <Resource Include="Resources\rotate_right.png" />
   </ItemGroup>
   
   <ItemGroup>
@@ -38,10 +54,6 @@
     <Content Include="GIMP\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\PDF_Inspektor_Updater\PDF_Inspektor_Updater.csproj" />
   </ItemGroup>
   
   <ItemGroup>

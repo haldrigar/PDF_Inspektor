@@ -3,6 +3,8 @@
 // Copyright (c) Grzegorz Gogolewski. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 16:31:17
 // ====================================================================================================
 
 namespace PDF_Inspektor.PDF;
@@ -14,7 +16,7 @@ using System.Runtime.CompilerServices;
 /// <summary>
 /// Klasa reprezentująca plik PDF.
 /// </summary>
-public sealed class PdfFile : INotifyPropertyChanged
+internal sealed class PdfFile : INotifyPropertyChanged
 {
     private string _filePath;
     private string _fileName;

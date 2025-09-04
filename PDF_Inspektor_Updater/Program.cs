@@ -1,6 +1,11 @@
-﻿// <copyright file="Program.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+﻿// ====================================================================================================
+// <copyright file="Program.cs" company="Grzegorz Gogolewski">
+// Copyright (c) Grzegorz Gogolewski. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
+// 
+// Ostatni zapis pliku: 2025-09-04 16:46:58
+// ====================================================================================================
 
 namespace PDF_Inspektor_Updater;
 
@@ -18,10 +23,6 @@ public static class Program
         //    Debugger.Launch();
         //}
 
-        string updatePath = args[0];
-        string localPath = args[1];
-        string mainExeFile = args[2];
-
         Console.WriteLine("PDF Inspektor Updater");
         Console.WriteLine("=====================\n");
 
@@ -31,6 +32,10 @@ public static class Program
 
             return 1; // Zwróć kod błędu
         }
+
+        string updatePath = args[0];
+        string localPath = args[1];
+        string mainExeFile = args[2];
 
         Console.WriteLine($"Ścieżka źródłowa aktualizacji: {updatePath}\n");
         Console.WriteLine($"Lokalna ścieżka aplikacji: {localPath}\n");
