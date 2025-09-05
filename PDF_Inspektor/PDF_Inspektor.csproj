@@ -1,4 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -10,78 +11,81 @@
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<UseWindowsForms>False</UseWindowsForms>
-		<PlatformTarget>x64</PlatformTarget>
-		<Version>1.25.9.4</Version>
-		<Platforms>AnyCPU</Platforms>
-		<StartupObject>PDF_Inspektor.App</StartupObject>
 		<Copyright>GISNET</Copyright>
 		<NeutralLanguage>pl</NeutralLanguage>
 
-		<PublishSingleFile>false</PublishSingleFile>
+		<!-- Konfiguracja publikacji -->
+
+		<!-- Określa architekturę i system, ustawia PlatformTarget na x64 -->
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+		<!-- Główna aplikacja nie jako pojedynczy plik -->
+		<PublishSingleFile>false</PublishSingleFile>
+		
 		<SelfContained>false</SelfContained>
 		<PublishReadyToRun>true</PublishReadyToRun>
+
 	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Syncfusion.PdfViewer.WPF" Version="30.2.7" />
-    <PackageReference Include="System.Drawing.Common" Version="9.0.8" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Syncfusion.PdfViewer.WPF" Version="30.2.7" />
+		<PackageReference Include="System.Drawing.Common" Version="9.0.8" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Resources\copy.png" />
-    <Resource Include="Resources\cut.png" />
-    <Resource Include="Resources\delete.png" />
-    <Resource Include="Resources\gisnet.ico" />
-    <Resource Include="Resources\rename.png" />
-    <Resource Include="Resources\rotate_left.png" />
-    <Resource Include="Resources\rotate_right.png" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Content Include="IrfanView\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Content Include="GIMP\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\PDF_Inspektor_Updater\PDF_Inspektor_Updater.csproj" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <None Update="Install\windowsdesktop-runtime-8.0.19-win-x64.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="PDF_Inspektor.appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Tools\GIMP.zip">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Tools\IrfanView.zip">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<Resource Include="Resources\copy.png" />
+		<Resource Include="Resources\cut.png" />
+		<Resource Include="Resources\delete.png" />
+		<Resource Include="Resources\gisnet.ico" />
+		<Resource Include="Resources\rename.png" />
+		<Resource Include="Resources\rotate_left.png" />
+		<Resource Include="Resources\rotate_right.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="IrfanView\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="GIMP\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\PDF_Inspektor_Updater\PDF_Inspektor_Updater.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="Install\windowsdesktop-runtime-8.0.19-win-x64.exe">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="PDF_Inspektor.appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="Tools\GIMP.zip">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="Tools\IrfanView.zip">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

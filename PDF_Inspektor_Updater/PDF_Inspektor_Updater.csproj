@@ -5,15 +5,19 @@
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
-		<PlatformTarget>x64</PlatformTarget>
 		<StartupObject>PDF_Inspektor_Updater.Program</StartupObject>
 
-		<!-- Ta właściwość zostanie ustawiona na 'true' tylko, gdy przekażemy argument /p:PublishSingleFileUpdater=true -->
-		<PublishSingleFile Condition="'$(PublishSingleFileUpdater)' == 'true'">true</PublishSingleFile>
+		<!-- Konfiguracja publikacji -->
+
+		<!-- Określa architekturę i system, ustawia PlatformTarget na x64 -->
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		
+		<!-- Updater zawsze jako pojedynczy plik -->
+		<PublishSingleFile>true</PublishSingleFile>
+
 		<SelfContained>false</SelfContained>
 		<PublishReadyToRun>true</PublishReadyToRun>
-  </PropertyGroup>
+
+	</PropertyGroup>
 
 </Project>
