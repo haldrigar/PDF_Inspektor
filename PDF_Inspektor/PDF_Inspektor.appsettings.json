@@ -1,8 +1,21 @@
 {
+  "UpdatePath": "\\\\192.168.0.40\\Aplikacje\\PDF_Inspektor\\",
+  "LastUsedDirectory": "",
   "SyncfusionLicenseKey": "Ngo9BigBOggjHTQxAR8/V1JEaF5cXmRCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWXdcc3RQRmNYWUR2W0NWYEk=",
   "WindowTop": 100,
   "WindowLeft": 100,
   "WindowWidth": 1200,
   "WindowHeight": 600,
-  "UpdateNetworkPath": "\\\\192.168.0.40\\Aplikacje\\PDF_Inspektor\\"
+  "Tools": [
+    {
+      "Name": "IrfanView",
+      "ExecutablePath": "Tools\\IrfanView\\IrfanViewPortable.exe",
+      "ZipFileName": "irfanview.zip"
+    },
+    {
+      "Name": "GIMP",
+      "ExecutablePath": "Tools\\GIMP\\GIMPPortable.exe",
+      "ZipFileName": "gimp.zip"
+    }
+  ]
 }

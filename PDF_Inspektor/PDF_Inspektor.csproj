@@ -1,33 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<RootNamespace>PDF_Inspektor</RootNamespace>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<ApplicationIcon>Resources\gisnet.ico</ApplicationIcon>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<UseWindowsForms>False</UseWindowsForms>
+		<PlatformTarget>x64</PlatformTarget>
+		<Version>1.25.9.4</Version>
+		<Platforms>AnyCPU</Platforms>
+		<StartupObject>PDF_Inspektor.App</StartupObject>
+		<Copyright>GISNET</Copyright>
+		<NeutralLanguage>pl</NeutralLanguage>
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <RootNamespace>PDF_Inspektor</RootNamespace>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <ApplicationIcon>Resources\gisnet.ico</ApplicationIcon>
-    <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <UseWindowsForms>False</UseWindowsForms>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <VersionPrefix>1.25.9.4</VersionPrefix>
-    <Platforms>AnyCPU;x64</Platforms>
-    <StartupObject>PDF_Inspektor.App</StartupObject>
-    <Copyright>GISNET</Copyright>
-    <NeutralLanguage>pl</NeutralLanguage>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Resources\copy.png" />
-    <None Remove="Resources\cut.png" />
-    <None Remove="Resources\delete.png" />
-    <None Remove="Resources\gisnet.ico" />
-    <None Remove="Resources\rename.png" />
-    <None Remove="Resources\rotate_left.png" />
-    <None Remove="Resources\rotate_right.png" />
-  </ItemGroup>
+		<PublishSingleFile>false</PublishSingleFile>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>false</SelfContained>
+		<PublishReadyToRun>true</PublishReadyToRun>
+	</PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Syncfusion.PdfViewer.WPF" Version="30.2.7" />
@@ -54,6 +48,10 @@
     <Content Include="GIMP\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\PDF_Inspektor_Updater\PDF_Inspektor_Updater.csproj" />
   </ItemGroup>
   
   <ItemGroup>

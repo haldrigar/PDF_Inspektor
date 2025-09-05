@@ -1,8 +1,12 @@
 @echo off
-cd PDF_Inspektor
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=false
+rem Ustawia bie¿¹cy katalog na folder, w którym znajduje siê skrypt
+cd /d "%~dp0"
 
-cd PDF_Inspektor_Updater
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+echo Publikowanie PDF_Inspektor i PDF_Inspektor_Updater...
 
+rem Publikuje ca³¹ solucjê dla architektury x64
+dotnet publish PDF_Inspektor.sln -c Release -r win-x64 --self-contained false /p:PublishSingleFile=false /p:PublishSingleFileUpdater=true
+
+echo.
+echo Publikowanie zakoñczone.
 pause

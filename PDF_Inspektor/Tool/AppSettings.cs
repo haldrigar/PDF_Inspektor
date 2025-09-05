@@ -4,7 +4,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
 // 
-// Ostatni zapis pliku: 2025-09-04 14:29:01
+// Ostatni zapis pliku: 2025-09-04 17:44:06
 // ====================================================================================================
 
 namespace PDF_Inspektor.Tool;
@@ -16,7 +16,7 @@ using System.Text.Json.Serialization;
 /// <summary>
 /// Definiuje pojedyncze narzędzie zewnętrzne używane przez aplikację.
 /// </summary>
-public class ExternalTool
+internal class ExternalTool
 {
     /// <summary>
     /// Pobiera nazwę wyświetlaną narzędzia.
@@ -104,6 +104,7 @@ internal class AppSettings
             try
             {
                 string json = File.ReadAllText(ConfigFilePath);
+
                 return JsonSerializer.Deserialize<AppSettings>(json) ?? CreateDefault();
             }
             catch (Exception ex)
@@ -130,6 +131,10 @@ internal class AppSettings
         File.WriteAllText(ConfigFilePath, json);
     }
 
+    /// <summary>
+    /// Funkcja tworzy domyślną instancję ustawień i zapisuje ją do pliku.
+    /// </summary>
+    /// <returns></returns>
     private static AppSettings CreateDefault()
     {
         // Tworzy domyślną instancję ustawień i zapisuje ją do pliku
